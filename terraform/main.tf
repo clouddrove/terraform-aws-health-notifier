@@ -81,7 +81,7 @@ data "aws_iam_policy_document" "lambda" {
   statement {
     sid       = "Secret"
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = length(compact([var.jira_secret_arn, var.github_secret_arn])) > 0 ? compact([var.jira_secret_arn, var.github_secret_arn]) : ["arn:aws:secretsmanager:*:*:secret:disabled"]
+    resources = length(compact([var.jira_secret_arn, var.github_secret_arn, var.linear_secret_arn])) > 0 ? compact([var.jira_secret_arn, var.github_secret_arn, var.linear_secret_arn]) : ["arn:aws:secretsmanager:*:*:secret:disabled"]
   }
   statement {
     sid       = "Dlq"
@@ -124,7 +124,7 @@ resource "aws_cloudwatch_log_group" "lambda" {
 }
 
 resource "aws_lambda_function" "handler" {
-  # checkov:skip=CKV_AWS_117: function calls public Jira and AWS APIs only; a VPC would add NAT cost with no security benefit.
+  # checkov:skip=CKV_AWS_117: function calls public Jira, GitHub, Linear and AWS APIs only; a VPC would add NAT cost with no security benefit.
   # checkov:skip=CKV_AWS_173: environment holds config and the secret ARN only, never the token; AWS-managed encryption at rest is sufficient.
   # checkov:skip=CKV_AWS_272: code signing is out of scope for this internal event handler.
   function_name    = var.name_prefix
@@ -144,6 +144,10 @@ resource "aws_lambda_function" "handler" {
       GITHUB_REPO        = var.github_repo
       JIRA_SECRET_ARN    = var.jira_secret_arn
       GITHUB_SECRET_ARN  = var.github_secret_arn
+      LINEAR_SECRET_ARN  = var.linear_secret_arn
+      LINEAR_TEAM_KEY    = var.linear_team_key
+      LINEAR_DONE_STATE  = var.linear_done_state
+      ISSUE_LABEL        = var.issue_label
       JIRA_PROJECT_KEY   = var.jira_project_key
       JIRA_ISSUE_TYPE    = var.jira_issue_type
       DEFAULT_PRIORITY   = var.default_priority

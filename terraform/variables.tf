@@ -11,7 +11,7 @@ variable "name_prefix" {
 }
 
 variable "notifiers" {
-  description = "Comma-separated notifiers to fan out to (jira, github)."
+  description = "Comma-separated notifiers to fan out to (jira, github, linear)."
   type        = string
   default     = "jira"
 }
@@ -62,6 +62,30 @@ variable "github_repo" {
   description = "owner/repo for the GitHub Issues notifier (used when notifiers includes github)."
   type        = string
   default     = ""
+}
+
+variable "linear_secret_arn" {
+  description = "ARN of the Linear API key secret (used when notifiers includes linear)."
+  type        = string
+  default     = ""
+}
+
+variable "linear_team_key" {
+  description = "Linear team key, e.g. OPS (used when notifiers includes linear). Team and workflow state UUIDs are resolved from it at runtime."
+  type        = string
+  default     = ""
+}
+
+variable "linear_done_state" {
+  description = "Name of the Linear completed workflow state used to close an issue. Empty picks the team's first completed state."
+  type        = string
+  default     = ""
+}
+
+variable "issue_label" {
+  description = "Label applied to every ticket created by the GitHub and Linear notifiers. Empty disables it."
+  type        = string
+  default     = "aws-health"
 }
 
 variable "event_type_categories" {

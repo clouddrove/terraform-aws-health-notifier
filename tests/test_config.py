@@ -44,3 +44,33 @@ def test_enrich_enabled(monkeypatch):
     cfg = config.load()
     assert cfg.enrich_tags is True
     assert cfg.tag_keys == ["Name", "Team"]
+
+
+def test_linear_config(monkeypatch):
+    _env(
+        monkeypatch,
+        NOTIFIERS="linear",
+        LINEAR_SECRET_ARN="arn:l",
+        LINEAR_TEAM_KEY="OPS",
+        LINEAR_DONE_STATE="Shipped",
+    )
+    cfg = config.load()
+    assert cfg.notifiers == ["linear"]
+    assert cfg.linear_secret_arn == "arn:l"
+    assert cfg.linear_team_key == "OPS"
+    assert cfg.linear_done_state == "Shipped"
+
+
+def test_linear_done_state_defaults_to_empty(monkeypatch):
+    _env(monkeypatch)
+    assert config.load().linear_done_state == ""
+
+
+def test_issue_label_defaults(monkeypatch):
+    _env(monkeypatch)
+    assert config.load().issue_label == "aws-health"
+
+
+def test_issue_label_override(monkeypatch):
+    _env(monkeypatch, ISSUE_LABEL="infra-alerts")
+    assert config.load().issue_label == "infra-alerts"

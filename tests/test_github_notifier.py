@@ -56,3 +56,19 @@ def test_close_comments_then_closes() -> None:
     GithubNotifier(c, "clouddrove/x").close("123", CFG)  # type: ignore[arg-type]
     assert c.comments == [("clouddrove/x", "123")]
     assert c.closed == [("clouddrove/x", "123")]
+
+
+def test_open_applies_the_categorization_label_alongside_priority() -> None:
+    c = _Client()
+    GithubNotifier(c, "clouddrove/x", "aws-health").open(EV, CFG)  # type: ignore[arg-type]
+    assert c.created["labels"] == ["priority:high", "aws-health"]
+    assert c.labels == [
+        ("clouddrove/x", "priority:high"),
+        ("clouddrove/x", "aws-health"),
+    ]
+
+
+def test_open_without_a_label_keeps_priority_only() -> None:
+    c = _Client()
+    GithubNotifier(c, "clouddrove/x", "").open(EV, CFG)  # type: ignore[arg-type]
+    assert c.created["labels"] == ["priority:high"]

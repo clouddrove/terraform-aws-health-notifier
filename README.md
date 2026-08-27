@@ -1,9 +1,9 @@
 # aws-health-notifier
 
 Turn AWS Health EC2 scheduled events (maintenance, retirement, reboots) into
-tracked tickets, automatically, across an AWS Organization. Jira Cloud is the
-first notifier; the sink is pluggable, so Slack or PagerDuty can be added later
-without touching the core.
+tracked tickets, automatically, across an AWS Organization. Jira Cloud, GitHub
+Issues, and Linear ship today; the sink is pluggable, so Slack or PagerDuty can
+be added later without touching the core.
 
 ## Why not the AWS Service Management Connector
 
@@ -24,12 +24,13 @@ Member accounts ──(AWS Health org events)──▶ Central Ops account
                                      ├─ dedup / lifecycle ─▶ DynamoDB (eventArn ▶ ref)
                                      ├─ enrich (event payload only)
                                      ├─ priority map
-                                     └─ Notifiers ─▶ Jira REST v3 and/or GitHub Issues
+                                     └─ Notifiers ─▶ Jira REST v3, GitHub Issues,
+                                                │         Linear GraphQL
                                                 │        (create / comment / close)
                                      async failure ─▶ SQS DLQ
 ```
 
-The Lambda is sink-agnostic. `NOTIFIERS` is a comma list (e.g. `jira,github`) and
+The Lambda is sink-agnostic. `NOTIFIERS` is a comma list (e.g. `jira,github,linear`) and
 the same event fans out to every listed sink. Each sink is tracked independently
 in DynamoDB by `(eventArn, sink)`, so dedup and auto-close are per-sink and a
 partial failure retries only the sink that failed. Adding a sink is a new
@@ -58,11 +59,13 @@ src/handler/
   notifiers/
     base.py             Notifier protocol + NotifierError
     priority.py         event type to priority mapping
-    __init__.py         build(cfg) factory
+    ticket.py           shared title + markdown body rendering
+    __init__.py         build_all(cfg) factory
     jira/               client.py, format.py (ADF), notifier.py
     github/             client.py, format.py (markdown), notifier.py
+    linear/             client.py (GraphQL), format.py, resolve.py, notifier.py
 terraform/              EventBridge, Lambda, IAM, DynamoDB, SQS DLQ, S3 backend
-tests/                  pytest, moto (AWS), urllib mocking (Jira and GitHub)
+tests/                  pytest, moto (AWS), urllib mocking (Jira, GitHub, Linear)
 .github/workflows/      ci.yml (checks) and deploy.yml (OIDC apply)
 ```
 
@@ -70,8 +73,9 @@ tests/                  pytest, moto (AWS), urllib mocking (Jira and GitHub)
 
 - A central operations AWS account.
 - Terraform >= 1.10, AWS provider ~> 6.57.
-- A notifier target: a Jira Cloud project (create/comment/transition) or a
-  GitHub repo with a PAT that has issues read and write.
+- At least one notifier target: a Jira Cloud project (create/comment/transition),
+  a GitHub repo with a PAT that has issues read and write, or a Linear workspace
+  with a personal API key.
 - An S3 bucket for Terraform state (native lockfile, no DynamoDB lock table).
 
 ## Setup
@@ -90,9 +94,10 @@ member-account EC2 Health events surface on the central account event bus.
 ### 2. Choose notifiers and create a secret for each (central account)
 
 Set `NOTIFIERS` (Terraform var `notifiers`) to a comma list, e.g. `jira`,
-`github`, or `jira,github` to send to both. Each selected notifier reads its own
-Secrets Manager secret (`jira_secret_arn`, `github_secret_arn`), so create one
-secret per notifier you enable.
+`github`, `linear`, or `jira,github,linear` to send to all three. Each selected
+notifier reads its own Secrets Manager secret (`jira_secret_arn`,
+`github_secret_arn`, `linear_secret_arn`), so create one secret per notifier you
+enable.
 
 **Jira** (include `jira` in `NOTIFIERS`) needs `JIRA_PROJECT_KEY` and a secret
 passed as `jira_secret_arn`:
@@ -122,13 +127,45 @@ transition issues. Priority becomes the Jira priority name.
 and write on the target repo. Priority becomes a `priority:<level>` label, which
 the notifier creates on the repo if missing.
 
+**Linear** (include `linear` in `NOTIFIERS`) needs `LINEAR_TEAM_KEY` and a secret
+passed as `linear_secret_arn`:
+
+```json
+{
+  "api_key": "<linear-personal-api-key>",
+  "api_url": "https://api.linear.app/graphql"
+}
+```
+
+`api_url` is optional. A personal API key is sent in the `Authorization` header
+verbatim, with **no `Bearer` prefix** (Linear reserves that for OAuth tokens).
+
+`linear_team_key` is the short team key, the `OPS` in an issue id like `OPS-123`.
+The team UUID and the workflow state used to close an issue are resolved from it
+on the first invocation and cached for the life of the execution environment, so
+no UUIDs belong in your tfvars. Closing sets the issue to the team's first
+workflow state of type `completed`; set `linear_done_state` to a state name if
+you want a different one.
+
+Priority maps onto Linear's native priority field rather than a label: `Urgent`
+becomes 1, `High` 2, `Medium` 3, `Low` 4, and anything unmapped becomes 0
+("no priority").
+
+Linear allows 2,500 requests per user per hour on a personal API key. Each event
+costs at most a handful of calls, so only very high event volume comes close.
+
 ```bash
 aws secretsmanager create-secret \
   --name aws-health-notifier/jira \
   --secret-string file://jira.json
 ```
 
-Note each returned ARN for `jira_secret_arn` / `github_secret_arn`.
+Note each returned ARN for `jira_secret_arn` / `github_secret_arn` /
+`linear_secret_arn`.
+
+Tickets from the GitHub and Linear sinks also carry a shared `issue_label`
+(default `aws-health`), created on demand, so every ticket this Lambda opens can
+be filtered as a group. Set `issue_label = ""` to turn it off.
 
 ### 3. Deploy
 
@@ -162,11 +199,13 @@ Configure these repo-level Actions variables for deploy:
 | `AWS_DEPLOY_ROLE_ARN` | IAM role the workflow assumes via OIDC |
 | `AWS_REGION` | deployment region |
 | `TF_STATE_BUCKET` | S3 bucket holding Terraform state |
-| `NOTIFIERS` | optional, comma list of `jira` and/or `github`, defaults to `jira` |
+| `NOTIFIERS` | optional, comma list of `jira`, `github`, `linear`, defaults to `jira` |
 | `JIRA_SECRET_ARN` | ARN of the Jira secret (when notifiers includes jira) |
 | `GITHUB_SECRET_ARN` | ARN of the GitHub secret (when notifiers includes github) |
+| `LINEAR_SECRET_ARN` | ARN of the Linear secret (when notifiers includes linear) |
 | `JIRA_PROJECT_KEY` | Jira project for tickets (when notifiers includes jira) |
 | `GITHUB_REPO` | owner/repo for issues (when notifiers includes github) |
+| `LINEAR_TEAM_KEY` | Linear team key, e.g. `OPS` (when notifiers includes linear) |
 
 The IAM role's trust policy must allow this repository's OIDC subject
 (`token.actions.githubusercontent.com`).
@@ -179,6 +218,10 @@ The IAM role's trust policy must allow this repository's OIDC subject
 | `JIRA_SECRET_ARN` | `jira_secret_arn` | `""` (required for jira) |
 | `GITHUB_SECRET_ARN` | `github_secret_arn` | `""` (required for github) |
 | `GITHUB_REPO` | `github_repo` | `""` (required for github) |
+| `LINEAR_SECRET_ARN` | `linear_secret_arn` | `""` (required for linear) |
+| `LINEAR_TEAM_KEY` | `linear_team_key` | `""` (required for linear) |
+| `LINEAR_DONE_STATE` | `linear_done_state` | `""` (first completed state) |
+| `ISSUE_LABEL` | `issue_label` | `aws-health` (github and linear) |
 | `JIRA_PROJECT_KEY` | `jira_project_key` | `""` (required for jira) |
 | `JIRA_ISSUE_TYPE` | `jira_issue_type` | `Task` |
 | `DEFAULT_PRIORITY` | `default_priority` | `Low` |
@@ -216,7 +259,7 @@ member-account footprint at all.
 
 ```bash
 make lint        # ruff + mypy
-make test        # pytest (moto + urllib mocking, no AWS or Jira needed)
+make test        # pytest (moto + urllib mocking, no AWS or ticket system needed)
 make package     # build the Lambda zip
 make tf-validate # terraform fmt + tflint + checkov
 ```
