@@ -4,11 +4,9 @@ from typing import Any
 
 from ...enrichment import tags as tag_util
 from ...events import HealthEvent
+from ..ticket import summary
 
-
-def summary(ev: HealthEvent) -> str:
-    instances = ", ".join(ev.entities) or "unknown"
-    return f"[AWS Health] {ev.event_type_code} - {instances} ({ev.account}/{ev.region})"
+__all__ = ["description", "summary"]
 
 
 def _line(label: str, value: str) -> dict[str, Any]:
