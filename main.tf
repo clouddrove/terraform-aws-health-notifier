@@ -66,6 +66,10 @@ module "sqs" {
 ## Execution role. The policy is built here rather than taken from the lambda
 ## module, whose built-in policy grants its actions on Resource = "*".
 ##-----------------------------------------------------------------------------
+data "aws_caller_identity" "current" {}
+
+data "aws_region" "current" {}
+
 data "aws_iam_policy_document" "assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -80,9 +84,12 @@ data "aws_iam_policy_document" "lambda" {
   statement {
     sid     = "Logs"
     actions = ["logs:CreateLogStream", "logs:PutLogEvents"]
+    # Built from the caller's own account and region rather than a wildcard.
+    # The group itself is created inside the lambda module, and referencing its
+    # output here would make the role depend on the function that consumes it.
     resources = [
-      "arn:aws:logs:*:*:log-group:/aws/lambda/${module.labels.id}",
-      "arn:aws:logs:*:*:log-group:/aws/lambda/${module.labels.id}:*",
+      "${local.log_group_arn}",
+      "${local.log_group_arn}:*",
     ]
   }
   statement {
@@ -90,12 +97,15 @@ data "aws_iam_policy_document" "lambda" {
     actions   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"]
     resources = [module.dynamodb.table_arn]
   }
-  statement {
-    sid     = "Secret"
-    actions = ["secretsmanager:GetSecretValue"]
-    # A deployment with no sink configured still has to plan, so fall back to a
-    # deliberately unmatchable ARN rather than an empty resource list.
-    resources = length(local.secret_arns) > 0 ? local.secret_arns : ["arn:aws:secretsmanager:*:*:secret:disabled"]
+  # Emitted only when a sink is configured. An always-present statement would
+  # need a placeholder resource, and the only safe placeholder is a wildcard.
+  dynamic "statement" {
+    for_each = length(local.secret_arns) > 0 ? [1] : []
+    content {
+      sid       = "Secret"
+      actions   = ["secretsmanager:GetSecretValue"]
+      resources = local.secret_arns
+    }
   }
   statement {
     sid       = "Dlq"
@@ -107,6 +117,11 @@ data "aws_iam_policy_document" "lambda" {
     actions   = ["xray:PutTraceSegments", "xray:PutTelemetryRecords"]
     resources = ["*"]
   }
+  # The describe role is deployed by StackSet to every member account, so the
+  # account field must be a wildcard: tag enrichment reads from whichever
+  # account the Health event belongs to. The role name is fixed, and the role's
+  # own trust policy is what restricts who may assume it.
+  # tfsec:ignore:aws-iam-no-policy-wildcards
   statement {
     sid       = "AssumeDescribeRole"
     actions   = ["sts:AssumeRole"]
@@ -140,6 +155,8 @@ module "iam_role" {
 ##-----------------------------------------------------------------------------
 locals {
   secret_arns = compact([var.jira_secret_arn, var.github_secret_arn, var.linear_secret_arn])
+
+  log_group_arn = "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${module.labels.id}"
 
   source_files = fileset("${path.module}/src", "**/*.py")
   source_hash  = substr(md5(join("", [for f in local.source_files : filemd5("${path.module}/src/${f}")])), 0, 12)
