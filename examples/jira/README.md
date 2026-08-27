@@ -28,5 +28,6 @@ terraform apply
 ```
 
 Replace the placeholder secret ARNs and identifiers in `example.tf` first. This
-example has no backend, so state is local; the deployable root with the S3
-backend lives in [`deploy/`](../../deploy).
+example declares no backend, so its state is local and disposable. For a real
+deployment, call the module from your own root with your own backend, as the
+Usage block above shows.
