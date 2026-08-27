@@ -1,4 +1,4 @@
-.PHONY: lint fmt test package plan tf-validate
+.PHONY: lint fmt test tf-test package plan tf-validate readme
 
 lint:
 	ruff check .
@@ -8,10 +8,13 @@ lint:
 fmt:
 	ruff format .
 	ruff check --fix .
-	terraform -chdir=terraform fmt
+	terraform fmt -recursive
 
 test:
 	pytest -v
+
+tf-test:
+	terraform test
 
 package:
 	rm -rf build dist && mkdir -p dist build
@@ -19,9 +22,12 @@ package:
 	cd build && zip -r ../dist/handler.zip handler -x '*.pyc' '*/__pycache__/*'
 
 tf-validate:
-	terraform -chdir=terraform fmt -check
-	tflint --chdir=terraform
-	checkov -d terraform --quiet
+	terraform fmt -check -recursive
+	tflint
+	checkov -d . --framework terraform --quiet
 
 plan:
-	terraform -chdir=terraform plan
+	terraform -chdir=deploy plan
+
+readme:
+	docker run --rm -v "$(PWD):/data" cytopia/terraform-docs terraform-docs-replace-012 md README.md

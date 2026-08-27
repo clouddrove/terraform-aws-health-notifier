@@ -1,0 +1,14 @@
+name: Readme Workflow
+# Manual only, deliberately. The generated README is built from README.yaml,
+# and README.md currently carries hand-written setup docs (secret payloads,
+# per-sink configuration) that README.yaml does not yet reproduce. Running this
+# on every push to main would silently discard them. Move that content into
+# README.yaml before restoring the push trigger.
+on:
+  workflow_dispatch:
+jobs:
+  README:
+    uses: clouddrove/github-shared-workflows/.github/workflows/readme.yml@v2
+    secrets:
+      TOKEN: ${{ secrets.GITHUB }}
+      SLACK_WEBHOOK_TERRAFORM: ${{ secrets.SLACK_WEBHOOK_TERRAFORM }}

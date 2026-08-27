@@ -1,0 +1,51 @@
+name: tf-checks
+# enable_plan is false because this repo has no BUILD_ROLE secret: the shared
+# workflow gates configure-aws-credentials on enable_plan, and with it true every
+# job fails at credential loading. fmt, init and validate still run. Set the
+# BUILD_ROLE secret and flip this back to true to get real plans per example.
+permissions:
+  id-token: write
+  contents: read
+on:
+  pull_request:
+jobs:
+  jira:
+    if: github.actor != 'dependabot[bot]'
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/jira/'
+      provider: aws
+      enable_plan: false
+      show_plan: false
+    secrets:
+      BUILD_ROLE: ${{ secrets.BUILD_ROLE }}
+  github:
+    if: github.actor != 'dependabot[bot]'
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/github/'
+      provider: aws
+      enable_plan: false
+      show_plan: false
+    secrets:
+      BUILD_ROLE: ${{ secrets.BUILD_ROLE }}
+  linear:
+    if: github.actor != 'dependabot[bot]'
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/linear/'
+      provider: aws
+      enable_plan: false
+      show_plan: false
+    secrets:
+      BUILD_ROLE: ${{ secrets.BUILD_ROLE }}
+  complete:
+    if: github.actor != 'dependabot[bot]'
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/complete/'
+      provider: aws
+      enable_plan: false
+      show_plan: false
+    secrets:
+      BUILD_ROLE: ${{ secrets.BUILD_ROLE }}

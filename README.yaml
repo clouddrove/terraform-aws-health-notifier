@@ -1,0 +1,103 @@
+---
+#
+# This is the canonical configuration for the `README.md`
+# Run `make readme` to rebuild the `README.md`
+#
+
+# Name of this project
+name: AWS Health Notifier
+
+# License of this project
+license: "APACHE"
+
+# Canonical GitHub repo
+github_repo: clouddrove/aws-health-notifier
+
+# Badges to display
+badges:
+  - name: "Latest Release"
+    image: "https://img.shields.io/github/release/clouddrove/aws-health-notifier.svg"
+    url: "https://github.com/clouddrove/aws-health-notifier/releases/latest"
+  - name: "tfsec"
+    image: "https://github.com/clouddrove/aws-health-notifier/actions/workflows/tfsec.yml/badge.svg"
+    url: "https://github.com/clouddrove/aws-health-notifier/actions/workflows/tfsec.yml"
+  - name: "Licence"
+    image: "https://img.shields.io/badge/License-APACHE-blue.svg"
+    url: "LICENSE.md"
+  - name: "Changelog"
+    image: "https://img.shields.io/badge/Changelog-blue"
+    url: "CHANGELOG.md"
+
+prerequesties:
+  - name: Terraform
+    url: https://learn.hashicorp.com/terraform/getting-started/install.html
+    version: ">= 1.10.0"
+
+providers:
+  - name: aws
+    url: https://aws.amazon.com/
+    version: ">= 5.80.0"
+
+module_dependencies:
+  - name: Labels Module
+    url: https://github.com/clouddrove/terraform-aws-labels
+    description: Provides resource tagging.
+  - name: Lambda Module
+    url: https://github.com/clouddrove/terraform-aws-lambda
+    description: Runs the notifier handler.
+  - name: DynamoDB Module
+    url: https://github.com/clouddrove/terraform-aws-dynamodb
+    description: Per-sink dedup and lifecycle state.
+  - name: SQS Module
+    url: https://github.com/clouddrove/terraform-aws-sqs
+    description: Dead letter queue for failed deliveries.
+  - name: EventBridge Module
+    url: https://github.com/clouddrove/terraform-aws-eventbridge
+    description: Captures AWS Health events.
+  - name: IAM Role Module
+    url: https://github.com/clouddrove/terraform-aws-iam-role
+    description: Scoped Lambda execution role.
+
+# Description of this project
+description: |-
+  Turn AWS Health EC2 scheduled events (maintenance, retirement, reboots) into
+  tracked tickets across an AWS Organization. One event fans out to Jira, GitHub
+  Issues, and Linear; each sink is deduped and auto-closed independently.
+
+# How to use this project
+usage: |-
+  ### Linear only
+  ```hcl
+  module "aws_health_notifier" {
+    source  = "clouddrove/health-notifier/aws"
+    version = "1.0.0"
+
+    name        = "aws-health-notifier"
+    environment = "prod"
+
+    notifiers         = "linear"
+    linear_team_key   = "OPS"
+    linear_secret_arn = "<linear-secret-arn>"
+  }
+  ```
+
+  ### All three sinks
+  ```hcl
+  module "aws_health_notifier" {
+    source  = "clouddrove/health-notifier/aws"
+    version = "1.0.0"
+
+    name        = "aws-health-notifier"
+    environment = "prod"
+
+    notifiers = "jira,github,linear"
+
+    jira_project_key  = "OPS"
+    github_repo       = "clouddrove/your-repo"
+    linear_team_key   = "OPS"
+
+    jira_secret_arn   = "<jira-secret-arn>"
+    github_secret_arn = "<github-secret-arn>"
+    linear_secret_arn = "<linear-secret-arn>"
+  }
+  ```

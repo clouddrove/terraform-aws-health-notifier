@@ -10,7 +10,7 @@ from handler.events import HealthEvent
 from handler.notifiers.github.notifier import GithubNotifier
 from handler.notifiers.jira.notifier import JiraNotifier
 from handler.notifiers.linear.notifier import LinearNotifier
-from tests.conftest import make_config
+from tests.python.conftest import make_config
 
 EV = HealthEvent(
     "arn:abc",

@@ -32,7 +32,7 @@ jobs:
 
       - name: Terraform init
         run: |
-          terraform -chdir=terraform init \
+          terraform -chdir=deploy init \
             -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
             -backend-config="key=aws-health-notifier/terraform.tfstate" \
             -backend-config="region=${{ vars.AWS_REGION }}"
@@ -51,4 +51,4 @@ jobs:
           TF_VAR_enrich_tags: ${{ vars.ENRICH_TAGS || 'false' }}
           TF_VAR_org_root_id: ${{ vars.ORG_ROOT_ID }}
           TF_VAR_tag_keys: ${{ vars.TAG_KEYS || 'Name,Environment' }}
-        run: terraform -chdir=terraform apply -auto-approve
+        run: terraform -chdir=deploy apply -auto-approve

@@ -2,7 +2,7 @@
 # Deployed org-wide via a service-managed StackSet only when enrich_tags is set.
 resource "aws_cloudformation_stack_set" "describe" {
   count            = var.enrich_tags ? 1 : 0
-  name             = "${var.name_prefix}-describe"
+  name             = "${var.name}-describe"
   description      = "Read-only DescribeInstances role for aws-health-notifier tag enrichment."
   permission_model = "SERVICE_MANAGED"
   capabilities     = ["CAPABILITY_NAMED_IAM"]
@@ -22,7 +22,7 @@ resource "aws_cloudformation_stack_set" "describe" {
             Version = "2012-10-17"
             Statement = [{
               Effect    = "Allow"
-              Principal = { AWS = aws_iam_role.lambda.arn }
+              Principal = { AWS = module.iam_role.arn }
               Action    = "sts:AssumeRole"
             }]
           }

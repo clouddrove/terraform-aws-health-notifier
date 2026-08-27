@@ -3,7 +3,7 @@ from moto import mock_aws
 
 from handler.enrichment import tags
 from handler.events import HealthEvent
-from tests.conftest import make_config
+from tests.python.conftest import make_config
 
 
 def test_format_pairs():

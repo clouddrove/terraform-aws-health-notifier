@@ -3,7 +3,7 @@ from typing import Any
 from handler.events import HealthEvent
 from handler.notifiers import priority
 from handler.notifiers.jira import format as enrich
-from tests.conftest import make_config
+from tests.python.conftest import make_config
 
 CFG = make_config(priority_map={"AWS_EC2_INSTANCE_RETIREMENT_SCHEDULED": "High"})
 EV = HealthEvent(

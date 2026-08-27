@@ -1,6 +1,6 @@
 from handler.events import HealthEvent
 from handler.notifiers.github import format as gh
-from tests.conftest import make_config
+from tests.python.conftest import make_config
 
 CFG = make_config(
     notifiers=["github"],

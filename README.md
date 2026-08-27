@@ -64,8 +64,16 @@ src/handler/
     jira/               client.py, format.py (ADF), notifier.py
     github/             client.py, format.py (markdown), notifier.py
     linear/             client.py (GraphQL), format.py, resolve.py, notifier.py
-terraform/              EventBridge, Lambda, IAM, DynamoDB, SQS DLQ, S3 backend
-tests/                  pytest, moto (AWS), urllib mocking (Jira, GitHub, Linear)
+main.tf, enrichment.tf  the module, built on clouddrove/{lambda,dynamodb,sqs,
+variables.tf, outputs.tf   eventbridge,iam-role,labels}/aws
+versions.tf
+docs/io.md              generated inputs and outputs
+README.yaml             canonical source for the generated README
+deploy/                 the applyable root: S3 backend + one module block
+examples/               runnable examples: jira, github, linear, complete
+tests/
+  basic.tftest.hcl      native terraform test (mocked provider, no credentials)
+  python/               pytest, moto (AWS), urllib mocking (Jira, GitHub, Linear)
 .github/workflows/      ci.yml (checks) and deploy.yml (OIDC apply)
 ```
 
@@ -143,7 +151,7 @@ verbatim, with **no `Bearer` prefix** (Linear reserves that for OAuth tokens).
 `linear_team_key` is the short team key, the `OPS` in an issue id like `OPS-123`.
 The team UUID and the workflow state used to close an issue are resolved from it
 on the first invocation and cached for the life of the execution environment, so
-no UUIDs belong in your tfvars. Closing sets the issue to the team's first
+no UUIDs belong in your config. Closing sets the issue to the team's first
 workflow state of type `completed`; set `linear_done_state` to a state name if
 you want a different one.
 
@@ -171,15 +179,46 @@ be filtered as a group. Set `issue_label = ""` to turn it off.
 
 ```bash
 make package        # builds dist/handler.zip
-cd terraform
+cd deploy
 terraform init \
   -backend-config="bucket=<state-bucket>" \
   -backend-config="key=aws-health-notifier/terraform.tfstate" \
   -backend-config="region=<region>"
-terraform apply -var-file=terraform.tfvars
+terraform apply
 ```
 
-See `terraform/terraform.tfvars.example` for the variables.
+`deploy/` is the only root with a backend; it holds nothing but the backend and
+a single `module` block. Everything configurable lives on the module, listed
+under [Configuration](#configuration).
+
+To consume the module from your own root instead:
+
+```hcl
+module "aws_health_notifier" {
+  source = "github.com/clouddrove/aws-health-notifier"
+
+  notifiers       = "linear"
+  linear_team_key = "OPS"
+
+  linear_secret_arn = "<linear-secret-arn>"
+}
+```
+
+## Examples
+
+Each directory under `examples/` is a runnable root that calls the module. Copy
+one, replace the placeholder ARNs and identifiers, then `terraform init &&
+terraform apply`.
+
+| Example | Sinks |
+|---|---|
+| [`examples/jira`](examples/jira) | Jira only |
+| [`examples/github`](examples/github) | GitHub Issues only |
+| [`examples/linear`](examples/linear) | Linear only |
+| [`examples/complete`](examples/complete) | all three, plus tag enrichment |
+
+The examples declare no backend, so their state is local. Use `deploy/` for a
+real deployment.
 
 ## GitHub Actions
 
@@ -260,6 +299,7 @@ member-account footprint at all.
 ```bash
 make lint        # ruff + mypy
 make test        # pytest (moto + urllib mocking, no AWS or ticket system needed)
+make tf-test     # terraform test (mocked AWS provider, no credentials)
 make package     # build the Lambda zip
 make tf-validate # terraform fmt + tflint + checkov
 ```

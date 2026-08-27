@@ -11,11 +11,13 @@ build/
 dist/
 
 # Terraform
-terraform/.terraform/
+.terraform/
+# Only the deployable root pins providers; the module and examples do not.
+.terraform.lock.hcl
+!deploy/.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfvars
-!terraform/terraform.tfvars.example
 # Keep the provider lock file committed for reproducible deploys.
 
 # SDD scratch
