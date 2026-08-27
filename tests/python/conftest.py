@@ -19,6 +19,8 @@ def make_config(**overrides: Any) -> Config:
         "linear_secret_arn": "arn:lin",
         "linear_team_key": "",
         "linear_done_state": "",
+        "slack_secret_arn": "arn:slack",
+        "slack_channel": "",
         "issue_label": "aws-health",
         "project_key": "OPS",
         "issue_type": "Task",

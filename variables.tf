@@ -41,7 +41,7 @@ variable "tags" {
 }
 
 variable "notifiers" {
-  description = "Comma-separated notifiers to fan out to (jira, github, linear)."
+  description = "Comma-separated notifiers to fan out to (jira, github, linear, slack)."
   type        = string
   default     = "jira"
 }
@@ -108,6 +108,18 @@ variable "linear_team_key" {
 
 variable "linear_done_state" {
   description = "Name of the Linear completed workflow state used to close an issue. Empty picks the team's first completed state."
+  type        = string
+  default     = ""
+}
+
+variable "slack_secret_arn" {
+  description = "ARN of the Slack bot token secret (used when notifiers includes slack)."
+  type        = string
+  default     = ""
+}
+
+variable "slack_channel" {
+  description = "Slack channel id, e.g. C0123456789 (used when notifiers includes slack). An id rather than a name, because names can be changed out from under the config."
   type        = string
   default     = ""
 }

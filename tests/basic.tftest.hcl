@@ -45,12 +45,24 @@ run "all_sinks" {
   command = plan
 
   variables {
-    notifiers         = "jira,github,linear"
+    notifiers         = "jira,github,linear,slack"
     jira_project_key  = "OPS"
     github_repo       = "clouddrove/example"
     linear_team_key   = "OPS"
     jira_secret_arn   = "arn:aws:secretsmanager:us-east-1:111122223333:secret:jira-AbCdEf"
     github_secret_arn = "arn:aws:secretsmanager:us-east-1:111122223333:secret:github-AbCdEf"
     linear_secret_arn = "arn:aws:secretsmanager:us-east-1:111122223333:secret:linear-AbCdEf"
+    slack_channel     = "C0123456789"
+    slack_secret_arn  = "arn:aws:secretsmanager:us-east-1:111122223333:secret:slack-AbCdEf"
+  }
+}
+
+run "slack_only" {
+  command = plan
+
+  variables {
+    notifiers        = "slack"
+    slack_channel    = "C0123456789"
+    slack_secret_arn = "arn:aws:secretsmanager:us-east-1:111122223333:secret:slack-AbCdEf"
   }
 }

@@ -10,6 +10,7 @@ from handler.events import HealthEvent
 from handler.notifiers.github.notifier import GithubNotifier
 from handler.notifiers.jira.notifier import JiraNotifier
 from handler.notifiers.linear.notifier import LinearNotifier
+from handler.notifiers.slack.notifier import SlackNotifier
 from tests.python.conftest import make_config
 
 EV = HealthEvent(
@@ -101,7 +102,8 @@ def test_build_all_github_missing_repo() -> None:
 
 
 def test_build_all_unknown() -> None:
-    cfg = make_config(notifiers=["slack"])
+    # "slack" used to stand in for an unknown sink here; it is a real one now.
+    cfg = make_config(notifiers=["pagerduty"])
     with pytest.raises(ValueError, match="unknown notifier"):
         notifiers.build_all(cfg)
 
@@ -146,3 +148,38 @@ def test_build_all_linear_honours_api_url_override() -> None:
         linear = built[0][1]
         assert isinstance(linear, LinearNotifier)
         assert linear._client._url == "https://linear.internal/graphql"
+
+
+def test_build_all_slack() -> None:
+    with mock_aws():
+        arn = _secret("s", {"bot_token": "xoxb-x"})
+        cfg = make_config(notifiers=["slack"], slack_channel="C123", slack_secret_arn=arn)
+        built = notifiers.build_all(cfg)
+        assert [n for n, _ in built] == ["slack"]
+        assert isinstance(built[0][1], SlackNotifier)
+
+
+def test_build_all_slack_missing_channel() -> None:
+    cfg = make_config(notifiers=["slack"], slack_channel="")
+    with pytest.raises(ValueError, match="requires SLACK_CHANNEL"):
+        notifiers.build_all(cfg)
+
+
+def test_build_all_four_sinks_preserves_order() -> None:
+    with mock_aws():
+        ja = _secret("j", {"base_url": "https://x.atlassian.net", "email": "e", "api_token": "t"})
+        ga = _secret("g", {"token": "t"})
+        la = _secret("l", {"api_key": "lin_api_x"})
+        sa = _secret("s", {"bot_token": "xoxb-x"})
+        cfg = make_config(
+            notifiers=["jira", "github", "linear", "slack"],
+            project_key="OPS",
+            github_repo="o/r",
+            linear_team_key="OPS",
+            slack_channel="C123",
+            jira_secret_arn=ja,
+            github_secret_arn=ga,
+            linear_secret_arn=la,
+            slack_secret_arn=sa,
+        )
+        assert [n for n, _ in notifiers.build_all(cfg)] == ["jira", "github", "linear", "slack"]

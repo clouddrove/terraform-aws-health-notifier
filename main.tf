@@ -154,7 +154,12 @@ module "iam_role" {
 ## no-op; changing the filename is what forces the function to update.
 ##-----------------------------------------------------------------------------
 locals {
-  secret_arns = compact([var.jira_secret_arn, var.github_secret_arn, var.linear_secret_arn])
+  secret_arns = compact([
+    var.jira_secret_arn,
+    var.github_secret_arn,
+    var.linear_secret_arn,
+    var.slack_secret_arn,
+  ])
 
   log_group_arn = "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${module.labels.id}"
 
@@ -207,6 +212,8 @@ module "lambda" {
     LINEAR_SECRET_ARN  = var.linear_secret_arn
     LINEAR_TEAM_KEY    = var.linear_team_key
     LINEAR_DONE_STATE  = var.linear_done_state
+    SLACK_SECRET_ARN   = var.slack_secret_arn
+    SLACK_CHANNEL      = var.slack_channel
     ISSUE_LABEL        = var.issue_label
     JIRA_PROJECT_KEY   = var.jira_project_key
     JIRA_ISSUE_TYPE    = var.jira_issue_type
