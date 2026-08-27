@@ -88,7 +88,7 @@ data "aws_iam_policy_document" "lambda" {
     # The group itself is created inside the lambda module, and referencing its
     # output here would make the role depend on the function that consumes it.
     resources = [
-      "${local.log_group_arn}",
+      local.log_group_arn,
       "${local.log_group_arn}:*",
     ]
   }
