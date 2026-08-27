@@ -1,7 +1,7 @@
 version: 2
 
 updates:
-  # GitHub Actions used in ci.yml and deploy.yml
+  # GitHub Actions used in the workflows
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -10,9 +10,12 @@ updates:
       actions:
         patterns: ["*"]
 
-  # Terraform providers (aws, archive)
+  # Terraform providers (aws, archive) and the clouddrove modules, in the module
+  # root and in every example.
   - package-ecosystem: terraform
-    directory: /terraform
+    directories:
+      - /
+      - /examples/*
     schedule:
       interval: weekly
     groups:

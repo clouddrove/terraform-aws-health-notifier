@@ -69,12 +69,11 @@ variables.tf, outputs.tf   eventbridge,iam-role,labels}/aws
 versions.tf
 docs/io.md              generated inputs and outputs
 README.yaml             canonical source for the generated README
-deploy/                 the applyable root: S3 backend + one module block
 examples/               runnable examples: jira, github, linear, complete
 tests/
   basic.tftest.hcl      native terraform test (mocked provider, no credentials)
   python/               pytest, moto (AWS), urllib mocking (Jira, GitHub, Linear)
-.github/workflows/      ci.yml (checks) and deploy.yml (OIDC apply)
+.github/workflows/      ci.yml plus the shared CloudDrove workflows
 ```
 
 ## Prerequisites
@@ -175,34 +174,31 @@ Tickets from the GitHub and Linear sinks also carry a shared `issue_label`
 (default `aws-health`), created on demand, so every ticket this Lambda opens can
 be filtered as a group. Set `issue_label = ""` to turn it off.
 
-### 3. Deploy
+### 3. Call the module
 
-```bash
-make package        # builds dist/handler.zip
-cd deploy
-terraform init \
-  -backend-config="bucket=<state-bucket>" \
-  -backend-config="key=aws-health-notifier/terraform.tfstate" \
-  -backend-config="region=<region>"
-terraform apply
-```
-
-`deploy/` is the only root with a backend; it holds nothing but the backend and
-a single `module` block. Everything configurable lives on the module, listed
-under [Configuration](#configuration).
-
-To consume the module from your own root instead:
+This repo is a Terraform module, not a deployment. Call it from your own root,
+where your backend and provider live:
 
 ```hcl
+provider "aws" {
+  region = "us-east-1"
+}
+
 module "aws_health_notifier" {
   source = "github.com/clouddrove/aws-health-notifier"
 
-  notifiers       = "linear"
-  linear_team_key = "OPS"
+  name        = "aws-health-notifier"
+  environment = "prod"
 
+  notifiers         = "linear"
+  linear_team_key   = "OPS"
   linear_secret_arn = "<linear-secret-arn>"
 }
 ```
+
+Terraform builds the Lambda zip from `src/` via the archive provider, so there
+is no separate packaging step. Every input is listed under
+[Configuration](#configuration) and in [`docs/io.md`](docs/io.md).
 
 ## Examples
 
@@ -217,37 +213,27 @@ terraform apply`.
 | [`examples/linear`](examples/linear) | Linear only |
 | [`examples/complete`](examples/complete) | all three, plus tag enrichment |
 
-The examples declare no backend, so their state is local. Use `deploy/` for a
-real deployment.
+The examples declare no backend, so their state is local and disposable. For a
+real deployment, call the module from your own root as shown above.
 
 ## GitHub Actions
 
-Everything runs in CI, and deploys can run from Actions too.
+- **`ci.yml`** — ruff lint and format check, mypy strict, pytest, a
+  package-and-import check on the Lambda zip, then terraform fmt, validate for
+  every root, `terraform test`, and checkov.
+- **`tf-checks.yml`** — the shared CloudDrove workflow, once per example.
+  `enable_plan` is `false` until a `BUILD_ROLE` secret exists on this repo;
+  with it set, flip that input to get a real plan per example.
+- **`tflint.yml`**, **`tfsec.yml`**, **`pre-commit.yml`** — the shared lint and
+  scan workflows.
+- **`readme.yml`** — regenerates `README.md` from `README.yaml`. Manual only for
+  now: this README carries hand-written setup docs that `README.yaml` does not
+  yet reproduce, and the push trigger would discard them.
+- **`changelog.yml`**, **`automerge.yml`**, **`auto_assignee.yml`** — release and
+  PR housekeeping.
 
-- **`ci.yml`** (every push and PR): ruff lint + format check, mypy strict,
-  pytest, a package-and-import check on the Lambda zip, then terraform fmt,
-  validate, tflint, and checkov.
-- **`deploy.yml`** (manual, from the Actions tab): assumes an AWS role via GitHub
-  OIDC (no static keys) and runs `terraform apply` (Terraform builds the Lambda
-  zip via the archive provider).
-
-Configure these repo-level Actions variables for deploy:
-
-| Variable | Purpose |
-|---|---|
-| `AWS_DEPLOY_ROLE_ARN` | IAM role the workflow assumes via OIDC |
-| `AWS_REGION` | deployment region |
-| `TF_STATE_BUCKET` | S3 bucket holding Terraform state |
-| `NOTIFIERS` | optional, comma list of `jira`, `github`, `linear`, defaults to `jira` |
-| `JIRA_SECRET_ARN` | ARN of the Jira secret (when notifiers includes jira) |
-| `GITHUB_SECRET_ARN` | ARN of the GitHub secret (when notifiers includes github) |
-| `LINEAR_SECRET_ARN` | ARN of the Linear secret (when notifiers includes linear) |
-| `JIRA_PROJECT_KEY` | Jira project for tickets (when notifiers includes jira) |
-| `GITHUB_REPO` | owner/repo for issues (when notifiers includes github) |
-| `LINEAR_TEAM_KEY` | Linear team key, e.g. `OPS` (when notifiers includes linear) |
-
-The IAM role's trust policy must allow this repository's OIDC subject
-(`token.actions.githubusercontent.com`).
+The shared workflows expect the `BUILD_ROLE`, `GITHUB`, and
+`SLACK_WEBHOOK_TERRAFORM` org secrets.
 
 ## Configuration
 

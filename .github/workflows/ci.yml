@@ -36,11 +36,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v4
       - run: terraform fmt -check -recursive
-      # Validate the module, the deployable root, and every example, so a
-      # broken example cannot merge.
+      # Validate the module and every example, so a broken example cannot merge.
       - name: Validate all roots
         run: |
-          for d in . deploy examples/*/; do
+          for d in . examples/*/; do
             echo "::group::validate $d"
             terraform -chdir="$d" init -backend=false -input=false
             terraform -chdir="$d" validate
