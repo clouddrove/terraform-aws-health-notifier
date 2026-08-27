@@ -9,6 +9,7 @@ from handler import notifiers
 from handler.events import HealthEvent
 from handler.notifiers.github.notifier import GithubNotifier
 from handler.notifiers.jira.notifier import JiraNotifier
+from handler.notifiers.linear.notifier import LinearNotifier
 from tests.conftest import make_config
 
 EV = HealthEvent(
@@ -103,3 +104,45 @@ def test_build_all_unknown() -> None:
     cfg = make_config(notifiers=["slack"])
     with pytest.raises(ValueError, match="unknown notifier"):
         notifiers.build_all(cfg)
+
+
+def test_build_all_linear() -> None:
+    with mock_aws():
+        arn = _secret("l", {"api_key": "lin_api_x"})
+        cfg = make_config(notifiers=["linear"], linear_team_key="OPS", linear_secret_arn=arn)
+        built = notifiers.build_all(cfg)
+        assert [n for n, _ in built] == ["linear"]
+        assert isinstance(built[0][1], LinearNotifier)
+
+
+def test_build_all_three_sinks_preserves_order() -> None:
+    with mock_aws():
+        ja = _secret("j", {"base_url": "https://x.atlassian.net", "email": "e", "api_token": "t"})
+        ga = _secret("g", {"token": "t"})
+        la = _secret("l", {"api_key": "lin_api_x"})
+        cfg = make_config(
+            notifiers=["jira", "github", "linear"],
+            project_key="OPS",
+            github_repo="o/r",
+            linear_team_key="OPS",
+            jira_secret_arn=ja,
+            github_secret_arn=ga,
+            linear_secret_arn=la,
+        )
+        assert [n for n, _ in notifiers.build_all(cfg)] == ["jira", "github", "linear"]
+
+
+def test_build_all_linear_missing_team_key() -> None:
+    cfg = make_config(notifiers=["linear"], linear_team_key="")
+    with pytest.raises(ValueError, match="requires LINEAR_TEAM_KEY"):
+        notifiers.build_all(cfg)
+
+
+def test_build_all_linear_honours_api_url_override() -> None:
+    with mock_aws():
+        arn = _secret("l", {"api_key": "k", "api_url": "https://linear.internal/graphql"})
+        cfg = make_config(notifiers=["linear"], linear_team_key="OPS", linear_secret_arn=arn)
+        built = notifiers.build_all(cfg)
+        linear = built[0][1]
+        assert isinstance(linear, LinearNotifier)
+        assert linear._client._url == "https://linear.internal/graphql"
