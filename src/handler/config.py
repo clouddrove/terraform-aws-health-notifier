@@ -11,6 +11,10 @@ class Config:
     github_repo: str
     jira_secret_arn: str
     github_secret_arn: str
+    linear_secret_arn: str
+    linear_team_key: str
+    linear_done_state: str
+    issue_label: str
     project_key: str
     issue_type: str
     default_priority: str
@@ -48,6 +52,10 @@ def load() -> Config:
         github_repo=os.environ.get("GITHUB_REPO", ""),
         jira_secret_arn=os.environ.get("JIRA_SECRET_ARN", ""),
         github_secret_arn=os.environ.get("GITHUB_SECRET_ARN", ""),
+        linear_secret_arn=os.environ.get("LINEAR_SECRET_ARN", ""),
+        linear_team_key=os.environ.get("LINEAR_TEAM_KEY", ""),
+        linear_done_state=os.environ.get("LINEAR_DONE_STATE", ""),
+        issue_label=os.environ.get("ISSUE_LABEL", "aws-health"),
         project_key=os.environ.get("JIRA_PROJECT_KEY", ""),
         issue_type=os.environ.get("JIRA_ISSUE_TYPE", "Task"),
         default_priority=os.environ.get("DEFAULT_PRIORITY", "Low"),
