@@ -8,7 +8,7 @@ lint:
 fmt:
 	ruff format .
 	ruff check --fix .
-	terraform -chdir=terraform fmt
+	terraform fmt -recursive
 
 test:
 	pytest -v
@@ -19,9 +19,9 @@ package:
 	cd build && zip -r ../dist/handler.zip handler -x '*.pyc' '*/__pycache__/*'
 
 tf-validate:
-	terraform -chdir=terraform fmt -check
-	tflint --chdir=terraform
-	checkov -d terraform --quiet
+	terraform fmt -check -recursive
+	tflint
+	checkov -d . --framework terraform --quiet
 
 plan:
-	terraform -chdir=terraform plan
+	terraform -chdir=deploy plan

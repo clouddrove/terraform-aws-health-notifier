@@ -1,14 +1,3 @@
-provider "aws" {
-  region = var.region
-
-  default_tags {
-    tags = {
-      Project   = var.name_prefix
-      ManagedBy = "terraform"
-    }
-  }
-}
-
 # DynamoDB application state (dedup + lifecycle)
 resource "aws_dynamodb_table" "state" {
   # checkov:skip=CKV_AWS_119: table holds only eventArn to ref mapping, no sensitive data; SSE with the AWS-managed key is sufficient and avoids KMS cost.
@@ -111,8 +100,8 @@ resource "aws_iam_role_policy" "lambda" {
 # preserved (entrypoint handler.handler.lambda_handler). No prebuilt zip needed.
 data "archive_file" "lambda" {
   type        = "zip"
-  source_dir  = "${path.module}/../src"
-  output_path = "${path.module}/../dist/handler.zip"
+  source_dir  = "${path.module}/src"
+  output_path = "${path.module}/dist/handler.zip"
   excludes    = ["**/__pycache__/**"]
 }
 
