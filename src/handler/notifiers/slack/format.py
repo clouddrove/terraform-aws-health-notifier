@@ -15,9 +15,13 @@ __all__ = ["blocks", "fallback"]
 _HEADER_MAX = 150
 _TEXT_MAX = 3000
 
-# Slack fetches this itself, so it has to stay publicly reachable. The
-# account-id form is used rather than github.com/clouddrove.png because the id
-# survives an org rename.
+# The CloudDrove org avatar. Slack fetches this itself, so it has to stay
+# publicly reachable, and the account-id form is used rather than
+# github.com/clouddrove.png because the id survives an org rename.
+#
+# Slack image elements render png/jpg/gif only, so clouddrove.com/favicon.svg
+# cannot be used here. This PNG has no alpha channel, so it shows as a small
+# light square in dark mode; swapping in a transparent PNG would fix that.
 _LOGO_URL = "https://avatars.githubusercontent.com/u/45422299?s=64"
 
 # Slack has no priority field. An emoji carries the severity at a glance while
