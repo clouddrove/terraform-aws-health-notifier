@@ -1,13 +1,20 @@
+# Terraform version
 terraform {
-  required_version = ">= 1.10"
+  required_version = ">= 1.10.0"
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 6.57"
+      version = ">= 5.80.0"
     }
+
     archive = {
       source  = "hashicorp/archive"
-      version = "~> 2.8"
+      version = ">= 2.8.0"
     }
+  }
+
+  provider_meta "aws" {
+    user_agent = ["github.com/clouddrove/aws-health-notifier"]
   }
 }

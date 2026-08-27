@@ -4,10 +4,40 @@ variable "region" {
   default     = "us-east-1"
 }
 
-variable "name_prefix" {
-  description = "Prefix applied to all resource names."
+variable "name" {
+  description = "Base name for every resource; combined with environment by the labels module."
   type        = string
   default     = "aws-health-notifier"
+}
+
+variable "environment" {
+  description = "Deployment environment, applied as a name suffix and a tag."
+  type        = string
+  default     = "prod"
+}
+
+variable "label_order" {
+  description = "Order the labels module composes resource names in."
+  type        = list(any)
+  default     = ["name", "environment"]
+}
+
+variable "managedby" {
+  description = "Contact applied as the ManagedBy tag."
+  type        = string
+  default     = "hello@clouddrove.com"
+}
+
+variable "repository" {
+  description = "Source repository URL, applied as a tag."
+  type        = string
+  default     = "https://github.com/clouddrove/aws-health-notifier"
+}
+
+variable "tags" {
+  description = "Extra tags merged onto every resource."
+  type        = map(string)
+  default     = {}
 }
 
 variable "notifiers" {

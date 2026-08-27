@@ -3,7 +3,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project   = var.name_prefix
+      Project   = var.name
       ManagedBy = "terraform"
     }
   }
@@ -15,7 +15,12 @@ module "aws_health_notifier" {
   source = "../"
 
   region      = var.region
-  name_prefix = var.name_prefix
+  name        = var.name
+  environment = var.environment
+  label_order = var.label_order
+  managedby   = var.managedby
+  repository  = var.repository
+  tags        = var.tags
 
   notifiers = var.notifiers
 

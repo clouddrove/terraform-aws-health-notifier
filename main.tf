@@ -1,43 +1,71 @@
-# DynamoDB application state (dedup + lifecycle)
-resource "aws_dynamodb_table" "state" {
-  # checkov:skip=CKV_AWS_119: table holds only eventArn to ref mapping, no sensitive data; SSE with the AWS-managed key is sufficient and avoids KMS cost.
-  name         = "${var.name_prefix}-state"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "eventArn"
-  range_key    = "sink"
+##-----------------------------------------------------------------------------
+## Labels module provides consistent naming and tagging for every resource.
+##-----------------------------------------------------------------------------
+module "labels" {
+  source  = "clouddrove/labels/aws"
+  version = "1.3.1"
 
-  attribute {
-    name = "eventArn"
-    type = "S"
-  }
-
-  attribute {
-    name = "sink"
-    type = "S"
-  }
-
-  ttl {
-    attribute_name = "ttl"
-    enabled        = true
-  }
-
-  point_in_time_recovery {
-    enabled = true
-  }
-
-  server_side_encryption {
-    enabled = true
-  }
+  name        = var.name
+  environment = var.environment
+  repository  = var.repository
+  managedby   = var.managedby
+  label_order = var.label_order
+  extra_tags  = var.tags
 }
 
-# Dead letter queue for failed async invocations
-resource "aws_sqs_queue" "dlq" {
-  name                      = "${var.name_prefix}-dlq"
+##-----------------------------------------------------------------------------
+## Application state. Composite key so each notifier sink is deduped and closed
+## independently: a partial failure retries only the sink that failed.
+##-----------------------------------------------------------------------------
+module "dynamodb" {
+  source  = "clouddrove/dynamodb/aws"
+  version = "1.0.2"
+
+  name        = "${var.name}-state"
+  environment = var.environment
+  repository  = var.repository
+  managedby   = var.managedby
+  label_order = var.label_order
+
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "eventArn"
+  hash_key_type  = "S"
+  range_key      = "sink"
+  range_key_type = "S"
+
+  ttl_enabled   = true
+  ttl_attribute = "ttl"
+
+  enable_encryption             = true
+  enable_point_in_time_recovery = true
+
+  # The module sets read_capacity/write_capacity unconditionally from these
+  # (default 5), and AWS rejects both under PAY_PER_REQUEST. null unsets them.
+  autoscale_min_read_capacity  = null
+  autoscale_min_write_capacity = null
+}
+
+##-----------------------------------------------------------------------------
+## Dead letter queue for async invocation and EventBridge delivery failures.
+##-----------------------------------------------------------------------------
+module "sqs" {
+  source  = "clouddrove/sqs/aws"
+  version = "1.3.1"
+
+  name        = "${var.name}-dlq"
+  environment = var.environment
+  repository  = var.repository
+  managedby   = var.managedby
+  label_order = var.label_order
+
   message_retention_seconds = 1209600
   sqs_managed_sse_enabled   = true
 }
 
-# IAM role and least-privilege policy
+##-----------------------------------------------------------------------------
+## Execution role. The policy is built here rather than taken from the lambda
+## module, whose built-in policy grants its actions on Resource = "*".
+##-----------------------------------------------------------------------------
 data "aws_iam_policy_document" "assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -48,34 +76,31 @@ data "aws_iam_policy_document" "assume" {
   }
 }
 
-resource "aws_iam_role" "lambda" {
-  name               = "${var.name_prefix}-role"
-  assume_role_policy = data.aws_iam_policy_document.assume.json
-}
-
 data "aws_iam_policy_document" "lambda" {
   statement {
     sid     = "Logs"
     actions = ["logs:CreateLogStream", "logs:PutLogEvents"]
     resources = [
-      aws_cloudwatch_log_group.lambda.arn,
-      "${aws_cloudwatch_log_group.lambda.arn}:*",
+      "arn:aws:logs:*:*:log-group:/aws/lambda/${module.labels.id}",
+      "arn:aws:logs:*:*:log-group:/aws/lambda/${module.labels.id}:*",
     ]
   }
   statement {
     sid       = "Ddb"
     actions   = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"]
-    resources = [aws_dynamodb_table.state.arn]
+    resources = [module.dynamodb.table_arn]
   }
   statement {
-    sid       = "Secret"
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = length(compact([var.jira_secret_arn, var.github_secret_arn, var.linear_secret_arn])) > 0 ? compact([var.jira_secret_arn, var.github_secret_arn, var.linear_secret_arn]) : ["arn:aws:secretsmanager:*:*:secret:disabled"]
+    sid     = "Secret"
+    actions = ["secretsmanager:GetSecretValue"]
+    # A deployment with no sink configured still has to plan, so fall back to a
+    # deliberately unmatchable ARN rather than an empty resource list.
+    resources = length(local.secret_arns) > 0 ? local.secret_arns : ["arn:aws:secretsmanager:*:*:secret:disabled"]
   }
   statement {
     sid       = "Dlq"
     actions   = ["sqs:SendMessage"]
-    resources = [aws_sqs_queue.dlq.arn]
+    resources = [module.sqs.arn]
   }
   statement {
     sid       = "Xray"
@@ -89,123 +114,160 @@ data "aws_iam_policy_document" "lambda" {
   }
 }
 
-resource "aws_iam_role_policy" "lambda" {
-  name   = "${var.name_prefix}-policy"
-  role   = aws_iam_role.lambda.id
-  policy = data.aws_iam_policy_document.lambda.json
+module "iam_role" {
+  source  = "clouddrove/iam-role/aws"
+  version = "1.4.0"
+
+  name        = "${var.name}-role"
+  environment = var.environment
+  repository  = var.repository
+  managedby   = var.managedby
+  label_order = var.label_order
+
+  assume_role_policy = data.aws_iam_policy_document.assume.json
+  policy             = data.aws_iam_policy_document.lambda.json
+  policy_enabled     = true
 }
 
-# Lambda
-# Terraform builds the deployment zip from src/ so the handler/ package dir is
-# preserved (entrypoint handler.handler.lambda_handler). No prebuilt zip needed.
+##-----------------------------------------------------------------------------
+## Handler. Terraform builds the zip from src/ so the handler/ package dir is
+## preserved (entrypoint handler.handler.lambda_handler).
+##
+## The zip filename carries a hash of the source tree because the upstream
+## lambda module sets lifecycle.ignore_changes = [source_code_hash]. With the
+## hash ignored, a constant filename would make every code change a silent
+## no-op; changing the filename is what forces the function to update.
+##-----------------------------------------------------------------------------
+locals {
+  secret_arns = compact([var.jira_secret_arn, var.github_secret_arn, var.linear_secret_arn])
+
+  source_files = fileset("${path.module}/src", "**/*.py")
+  source_hash  = substr(md5(join("", [for f in local.source_files : filemd5("${path.module}/src/${f}")])), 0, 12)
+}
+
 data "archive_file" "lambda" {
   type        = "zip"
   source_dir  = "${path.module}/src"
-  output_path = "${path.module}/dist/handler.zip"
+  output_path = "${path.module}/dist/handler-${local.source_hash}.zip"
   excludes    = ["**/__pycache__/**"]
 }
 
-resource "aws_cloudwatch_log_group" "lambda" {
-  # checkov:skip=CKV_AWS_158: logs carry only status, eventArn, and ref, no secrets; AWS-managed encryption is sufficient.
-  # checkov:skip=CKV_AWS_338: retention is set via var (90 days default) to balance cost against audit need.
-  name              = "/aws/lambda/${var.name_prefix}"
-  retention_in_days = var.log_retention_days
-}
+module "lambda" {
+  source  = "clouddrove/lambda/aws"
+  version = "1.3.3"
 
-resource "aws_lambda_function" "handler" {
-  # checkov:skip=CKV_AWS_117: function calls public Jira, GitHub, Linear and AWS APIs only; a VPC would add NAT cost with no security benefit.
-  # checkov:skip=CKV_AWS_173: environment holds config and the secret ARN only, never the token; AWS-managed encryption at rest is sufficient.
-  # checkov:skip=CKV_AWS_272: code signing is out of scope for this internal event handler.
-  function_name    = var.name_prefix
-  role             = aws_iam_role.lambda.arn
-  runtime          = "python3.13"
-  handler          = "handler.handler.lambda_handler"
-  filename         = data.archive_file.lambda.output_path
-  source_code_hash = data.archive_file.lambda.output_base64sha256
-  timeout          = 30
-  memory_size      = 256
+  name        = var.name
+  environment = var.environment
+  repository  = var.repository
+  managedby   = var.managedby
+  label_order = var.label_order
+
+  filename                = data.archive_file.lambda.output_path
+  enable_source_code_hash = true
+  handler                 = "handler.handler.lambda_handler"
+  runtime                 = "python3.13"
+  timeout                 = 30
+  memory_size             = 256
 
   reserved_concurrent_executions = 5
+  tracing_mode                   = "Active"
+  dead_letter_target_arn         = module.sqs.arn
 
-  environment {
-    variables = {
-      NOTIFIERS          = var.notifiers
-      GITHUB_REPO        = var.github_repo
-      JIRA_SECRET_ARN    = var.jira_secret_arn
-      GITHUB_SECRET_ARN  = var.github_secret_arn
-      LINEAR_SECRET_ARN  = var.linear_secret_arn
-      LINEAR_TEAM_KEY    = var.linear_team_key
-      LINEAR_DONE_STATE  = var.linear_done_state
-      ISSUE_LABEL        = var.issue_label
-      JIRA_PROJECT_KEY   = var.jira_project_key
-      JIRA_ISSUE_TYPE    = var.jira_issue_type
-      DEFAULT_PRIORITY   = var.default_priority
-      PRIORITY_MAP_JSON  = jsonencode(var.priority_map)
-      TABLE_NAME         = aws_dynamodb_table.state.name
-      DONE_TRANSITION    = var.done_transition
-      ENRICH_TAGS        = tostring(var.enrich_tags)
-      DESCRIBE_ROLE_NAME = var.describe_role_name
-      TAG_KEYS           = var.tag_keys
+  # The scoped role above is used instead of the module's Resource = "*" policy.
+  create_iam_role = false
+  iam_role_arn    = module.iam_role.arn
+
+  # Log group encryption uses the AWS-managed key: the logs carry only status,
+  # eventArn, and ref, never secrets, so a CMK adds cost without benefit.
+  enable_kms                        = false
+  cloudwatch_logs_retention_in_days = var.log_retention_days
+
+  variables = {
+    NOTIFIERS          = var.notifiers
+    GITHUB_REPO        = var.github_repo
+    JIRA_SECRET_ARN    = var.jira_secret_arn
+    GITHUB_SECRET_ARN  = var.github_secret_arn
+    LINEAR_SECRET_ARN  = var.linear_secret_arn
+    LINEAR_TEAM_KEY    = var.linear_team_key
+    LINEAR_DONE_STATE  = var.linear_done_state
+    ISSUE_LABEL        = var.issue_label
+    JIRA_PROJECT_KEY   = var.jira_project_key
+    JIRA_ISSUE_TYPE    = var.jira_issue_type
+    DEFAULT_PRIORITY   = var.default_priority
+    PRIORITY_MAP_JSON  = jsonencode(var.priority_map)
+    TABLE_NAME         = module.dynamodb.table_name
+    DONE_TRANSITION    = var.done_transition
+    ENRICH_TAGS        = tostring(var.enrich_tags)
+    DESCRIBE_ROLE_NAME = var.describe_role_name
+    TAG_KEYS           = var.tag_keys
+  }
+}
+
+##-----------------------------------------------------------------------------
+## EventBridge rule for org-wide AWS Health EC2 events.
+##-----------------------------------------------------------------------------
+module "eventbridge" {
+  source  = "clouddrove/eventbridge/aws"
+  version = "1.0.2"
+
+  name        = "${var.name}-rule"
+  environment = var.environment
+  repository  = var.repository
+  label_order = var.label_order
+
+  create_bus  = false
+  create_role = false
+
+  rules = {
+    health = {
+      description = "Capture AWS Health EC2 scheduled-change events."
+      event_pattern = jsonencode({
+        source      = ["aws.health"]
+        detail-type = ["AWS Health Event"]
+        detail = {
+          service           = ["EC2"]
+          eventTypeCategory = var.event_type_categories
+        }
+      })
     }
   }
 
-  tracing_config {
-    mode = "Active"
-  }
-
-  dead_letter_config {
-    target_arn = aws_sqs_queue.dlq.arn
-  }
-
-  depends_on = [aws_cloudwatch_log_group.lambda]
-}
-
-# EventBridge rule for org-wide AWS Health EC2 events
-resource "aws_cloudwatch_event_rule" "health" {
-  name        = "${var.name_prefix}-rule"
-  description = "Capture AWS Health EC2 scheduled-change events."
-  event_pattern = jsonencode({
-    source      = ["aws.health"]
-    detail-type = ["AWS Health Event"]
-    detail = {
-      service           = ["EC2"]
-      eventTypeCategory = var.event_type_categories
-    }
-  })
-}
-
-resource "aws_cloudwatch_event_target" "lambda" {
-  rule = aws_cloudwatch_event_rule.health.name
-  arn  = aws_lambda_function.handler.arn
-
-  retry_policy {
-    maximum_retry_attempts       = 2
-    maximum_event_age_in_seconds = 3600
-  }
-
-  dead_letter_config {
-    arn = aws_sqs_queue.dlq.arn
+  targets = {
+    health = [{
+      name            = "lambda"
+      arn             = module.lambda.arn
+      dead_letter_arn = module.sqs.arn
+      retry_policy = {
+        maximum_retry_attempts       = 2
+        maximum_event_age_in_seconds = 3600
+      }
+    }]
   }
 }
 
+##-----------------------------------------------------------------------------
+## Invoke permission stays a raw resource: routing it through the lambda module
+## would make lambda depend on the rule ARN while eventbridge already depends on
+## the function ARN, which is a cycle between the two module calls.
+##-----------------------------------------------------------------------------
 resource "aws_lambda_permission" "events" {
   statement_id  = "AllowEventBridge"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.handler.function_name
+  function_name = module.lambda.name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.health.arn
+  source_arn    = module.eventbridge.eventbridge_rule_arns["health"]
 }
 
 resource "aws_sqs_queue_policy" "dlq" {
-  queue_url = aws_sqs_queue.dlq.id
+  queue_url = module.sqs.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
       Principal = { Service = "events.amazonaws.com" }
       Action    = "sqs:SendMessage"
-      Resource  = aws_sqs_queue.dlq.arn
-      Condition = { ArnEquals = { "aws:SourceArn" = aws_cloudwatch_event_rule.health.arn } }
+      Resource  = module.sqs.arn
+      Condition = { ArnEquals = { "aws:SourceArn" = module.eventbridge.eventbridge_rule_arns["health"] } }
     }]
   })
 }

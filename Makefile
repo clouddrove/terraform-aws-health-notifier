@@ -1,4 +1,4 @@
-.PHONY: lint fmt test package plan tf-validate
+.PHONY: lint fmt test tf-test package plan tf-validate readme
 
 lint:
 	ruff check .
@@ -13,6 +13,9 @@ fmt:
 test:
 	pytest -v
 
+tf-test:
+	terraform test
+
 package:
 	rm -rf build dist && mkdir -p dist build
 	cp -r src/handler build/handler
@@ -25,3 +28,6 @@ tf-validate:
 
 plan:
 	terraform -chdir=deploy plan
+
+readme:
+	docker run --rm -v "$(PWD):/data" cytopia/terraform-docs terraform-docs-replace-012 md README.md

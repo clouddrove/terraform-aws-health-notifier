@@ -7,7 +7,8 @@ provider "aws" {
 module "aws_health_notifier" {
   source = "../../"
 
-  name_prefix = "aws-health-notifier"
+  name        = "aws-health-notifier"
+  environment = "prod"
   notifiers   = "jira"
 
   jira_project_key = "OPS"

@@ -3,9 +3,9 @@ output "lambda_name" {
   value       = module.aws_health_notifier.lambda_name
 }
 
-output "rule_name" {
-  description = "Name of the EventBridge rule."
-  value       = module.aws_health_notifier.rule_name
+output "rule_arn" {
+  description = "ARN of the EventBridge rule capturing AWS Health events."
+  value       = module.aws_health_notifier.rule_arn
 }
 
 output "dlq_url" {

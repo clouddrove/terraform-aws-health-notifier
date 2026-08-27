@@ -7,7 +7,8 @@ provider "aws" {
 module "aws_health_notifier" {
   source = "../../"
 
-  name_prefix = "aws-health-notifier"
+  name        = "aws-health-notifier"
+  environment = "prod"
   notifiers   = "linear"
 
   # The short team key, the OPS in an issue id like OPS-123. The team UUID and

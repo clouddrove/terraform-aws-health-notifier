@@ -1,6 +1,6 @@
 from handler.events import HealthEvent
 from handler.notifiers.linear import format as lin
-from tests.conftest import make_config
+from tests.python.conftest import make_config
 
 EV = HealthEvent(
     "arn:abc",

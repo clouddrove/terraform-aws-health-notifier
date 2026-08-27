@@ -64,11 +64,16 @@ src/handler/
     jira/               client.py, format.py (ADF), notifier.py
     github/             client.py, format.py (markdown), notifier.py
     linear/             client.py (GraphQL), format.py, resolve.py, notifier.py
-main.tf, enrichment.tf  the module: EventBridge, Lambda, IAM, DynamoDB, SQS DLQ
-variables.tf, outputs.tf, versions.tf
+main.tf, enrichment.tf  the module, built on clouddrove/{lambda,dynamodb,sqs,
+variables.tf, outputs.tf   eventbridge,iam-role,labels}/aws
+versions.tf
+docs/io.md              generated inputs and outputs
+README.yaml             canonical source for the generated README
 deploy/                 the applyable root: S3 backend + one module block
 examples/               runnable examples: jira, github, linear, complete
-tests/                  pytest, moto (AWS), urllib mocking (Jira, GitHub, Linear)
+tests/
+  basic.tftest.hcl      native terraform test (mocked provider, no credentials)
+  python/               pytest, moto (AWS), urllib mocking (Jira, GitHub, Linear)
 .github/workflows/      ci.yml (checks) and deploy.yml (OIDC apply)
 ```
 
@@ -294,6 +299,7 @@ member-account footprint at all.
 ```bash
 make lint        # ruff + mypy
 make test        # pytest (moto + urllib mocking, no AWS or ticket system needed)
+make tf-test     # terraform test (mocked AWS provider, no credentials)
 make package     # build the Lambda zip
 make tf-validate # terraform fmt + tflint + checkov
 ```

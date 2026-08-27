@@ -5,7 +5,7 @@ import pytest
 from handler.events import HealthEvent
 from handler.notifiers.linear import resolve
 from handler.notifiers.linear.notifier import LinearNotifier
-from tests.conftest import make_config
+from tests.python.conftest import make_config
 
 CFG = make_config(
     notifiers=["linear"],

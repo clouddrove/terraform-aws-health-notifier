@@ -1,0 +1,8 @@
+# CKV_TF_1 / CKV_TF_2 require module sources to be git URLs pinned to a commit
+# hash. This repo sources CloudDrove modules from the Terraform registry with an
+# exact `version =` pin, which is the CloudDrove standard: its own review rules
+# treat a registry version pin as required and a git ref as a blocking finding.
+# The two policies are therefore not applicable here.
+skip-check:
+  - CKV_TF_1
+  - CKV_TF_2

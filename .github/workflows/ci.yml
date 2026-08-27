@@ -46,6 +46,10 @@ jobs:
             terraform -chdir="$d" validate
             echo "::endgroup::"
           done
+      # Native terraform test. The AWS provider is mocked, so this needs no
+      # credentials and still exercises a real plan of the module.
+      - name: Terraform test
+        run: terraform test
       - uses: terraform-linters/setup-tflint@v6
       - run: tflint --init
       - run: tflint
