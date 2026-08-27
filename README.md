@@ -176,10 +176,21 @@ terraform init \
   -backend-config="bucket=<state-bucket>" \
   -backend-config="key=aws-health-notifier/terraform.tfstate" \
   -backend-config="region=<region>"
-terraform apply -var-file=terraform.tfvars
+terraform apply -var-file=examples/linear.tfvars
 ```
 
-See `terraform/terraform.tfvars.example` for the variables.
+`terraform/examples/` holds a runnable variable file per sink. Copy the one you
+want, replace the placeholder ARNs and identifiers, and pass it with
+`-var-file`:
+
+| File | Sinks |
+|---|---|
+| `examples/jira.tfvars` | Jira only |
+| `examples/github.tfvars` | GitHub Issues only |
+| `examples/linear.tfvars` | Linear only |
+| `examples/all.tfvars` | all three, fanning out |
+
+Every variable is listed in [Configuration](#configuration).
 
 ## GitHub Actions
 

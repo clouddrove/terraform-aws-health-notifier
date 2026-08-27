@@ -15,7 +15,7 @@ terraform/.terraform/
 *.tfstate
 *.tfstate.*
 *.tfvars
-!terraform/terraform.tfvars.example
+!terraform/examples/*.tfvars
 # Keep the provider lock file committed for reproducible deploys.
 
 # SDD scratch
