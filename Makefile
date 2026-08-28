@@ -27,5 +27,11 @@ tf-validate:
 	checkov -d . --framework terraform --quiet
 
 
+# Regenerates README.md from README.yaml using the same genie template CI uses.
+# Requires gomplate (brew install gomplate).
 readme:
-	docker run --rm -v "$(PWD):/data" cytopia/terraform-docs terraform-docs-replace-012 md README.md
+	@test -d /tmp/genie || git clone --depth 1 https://github.com/clouddrove/genie /tmp/genie
+	@touch /tmp/readme-includes.md
+	README_YAML=$(PWD)/README.yaml README_INCLUDES=/tmp/readme-includes.md \
+		gomplate --file /tmp/genie/views/README.md --out README.md
+	terraform-docs markdown table --output-file docs/io.md --output-mode inject .

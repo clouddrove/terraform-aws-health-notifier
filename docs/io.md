@@ -34,8 +34,10 @@
 | [aws_lambda_permission.events](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
 | [aws_sqs_queue_policy.dlq](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/sqs_queue_policy) | resource |
 | [archive_file.lambda](https://registry.terraform.io/providers/hashicorp/archive/latest/docs/data-sources/file) | data source |
+| [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
 | [aws_iam_policy_document.assume](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
 | [aws_iam_policy_document.lambda](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
 
 ## Inputs
 
@@ -60,11 +62,13 @@
 | <a name="input_log_retention_days"></a> [log\_retention\_days](#input\_log\_retention\_days) | CloudWatch log retention in days. | `number` | `90` | no |
 | <a name="input_managedby"></a> [managedby](#input\_managedby) | Contact applied as the ManagedBy tag. | `string` | `"hello@clouddrove.com"` | no |
 | <a name="input_name"></a> [name](#input\_name) | Base name for every resource; combined with environment by the labels module. | `string` | `"aws-health-notifier"` | no |
-| <a name="input_notifiers"></a> [notifiers](#input\_notifiers) | Comma-separated notifiers to fan out to (jira, github, linear). | `string` | `"jira"` | no |
+| <a name="input_notifiers"></a> [notifiers](#input\_notifiers) | Comma-separated notifiers to fan out to (jira, github, linear, slack). | `string` | `"jira"` | no |
 | <a name="input_org_root_id"></a> [org\_root\_id](#input\_org\_root\_id) | Organization root or OU id the StackSet deploys the read role to (required when enrich\_tags). | `string` | `""` | no |
 | <a name="input_priority_map"></a> [priority\_map](#input\_priority\_map) | Map of AWS Health eventTypeCode to Jira priority name. | `map(string)` | <pre>{<br/>  "AWS_EC2_INSTANCE_RETIREMENT_SCHEDULED": "High"<br/>}</pre> | no |
 | <a name="input_region"></a> [region](#input\_region) | AWS region for the deployment. | `string` | `"us-east-1"` | no |
 | <a name="input_repository"></a> [repository](#input\_repository) | Source repository URL, applied as a tag. | `string` | `"https://github.com/clouddrove/aws-health-notifier"` | no |
+| <a name="input_slack_channel"></a> [slack\_channel](#input\_slack\_channel) | Slack channel id, e.g. C0123456789 (used when notifiers includes slack). An id rather than a name, because names can be changed out from under the config. | `string` | `""` | no |
+| <a name="input_slack_secret_arn"></a> [slack\_secret\_arn](#input\_slack\_secret\_arn) | ARN of the Slack bot token secret (used when notifiers includes slack). | `string` | `""` | no |
 | <a name="input_tag_keys"></a> [tag\_keys](#input\_tag\_keys) | Comma-separated instance tag keys to include on tickets. | `string` | `"Name,Environment"` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Extra tags merged onto every resource. | `map(string)` | `{}` | no |
 
