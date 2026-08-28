@@ -1,15 +1,22 @@
 name: Readme Workflow
-# README.md is generated from README.yaml by the genie template. Everything of
+# Manual until the GITHUB secret exists on this repo.
+#
+# README.md is generated from README.yaml by the genie template; everything of
 # substance lives under the `installation` and `variables` keys, which the
-# template renders verbatim; `description` and `usage` are NOT rendered, so
+# template renders verbatim. `description` and `usage` are NOT rendered, so
 # nothing may live there.
+#
+# Generation itself works: on the last push run the "Create readme" and
+# pre-commit steps all succeeded. Only the final "Push readme" step failed,
+# because it authenticates with secrets.TOKEN (passed below as secrets.GITHUB)
+# and this repo has no such secret. Restore the push trigger once it is set:
+#
+#   on:
+#     push:
+#       branches: [main]
+#       paths-ignore: ['README.md', 'docs/**']
+#     workflow_dispatch:
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'README.md'
-      - 'docs/**'
   workflow_dispatch:
 jobs:
   README:
