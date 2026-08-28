@@ -1,4 +1,11 @@
-.PHONY: lint fmt test tf-test package tf-validate readme
+# The readme target comes from clouddrove/genie, which the readme workflow
+# clones next to the workspace before running `make readme`. genie is private,
+# so the include is optional: everything below works without it, and defining a
+# local readme target here would shadow genie's and break that workflow.
+export GENIE_PATH ?= $(shell pwd)/../../../genie
+-include $(GENIE_PATH)/Makefile
+
+.PHONY: lint fmt test tf-test package tf-validate docs
 
 lint:
 	ruff check .
@@ -27,11 +34,6 @@ tf-validate:
 	checkov -d . --framework terraform --quiet
 
 
-# Regenerates README.md from README.yaml using the same genie template CI uses.
-# Requires gomplate (brew install gomplate).
-readme:
-	@test -d /tmp/genie || git clone --depth 1 https://github.com/clouddrove/genie /tmp/genie
-	@touch /tmp/readme-includes.md
-	README_YAML=$(PWD)/README.yaml README_INCLUDES=/tmp/readme-includes.md \
-		gomplate --file /tmp/genie/views/README.md --out README.md
+# Regenerates docs/io.md from the module's variables and outputs.
+docs:
 	terraform-docs markdown table --output-file docs/io.md --output-mode inject .
