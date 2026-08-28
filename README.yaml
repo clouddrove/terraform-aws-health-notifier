@@ -10,14 +10,14 @@
 
 name: AWS Health Notifier
 license: APACHE
-github_repo: clouddrove/aws-health-notifier
+github_repo: clouddrove/terraform-aws-health-notifier
 badges:
 - name: Latest Release
-  image: https://img.shields.io/github/release/clouddrove/aws-health-notifier.svg
-  url: https://github.com/clouddrove/aws-health-notifier/releases/latest
+  image: https://img.shields.io/github/release/clouddrove/terraform-aws-health-notifier.svg
+  url: https://github.com/clouddrove/terraform-aws-health-notifier/releases/latest
 - name: tfsec
-  image: https://github.com/clouddrove/aws-health-notifier/actions/workflows/tfsec.yml/badge.svg
-  url: https://github.com/clouddrove/aws-health-notifier/actions/workflows/tfsec.yml
+  image: https://github.com/clouddrove/terraform-aws-health-notifier/actions/workflows/tfsec.yml/badge.svg
+  url: https://github.com/clouddrove/terraform-aws-health-notifier/actions/workflows/tfsec.yml
 - name: Licence
   image: https://img.shields.io/badge/License-APACHE-blue.svg
   url: LICENSE.md
@@ -272,7 +272,7 @@ installation: |
   }
 
   module "aws_health_notifier" {
-    source = "github.com/clouddrove/aws-health-notifier"
+    source = "github.com/clouddrove/terraform-aws-health-notifier"
 
     name        = "aws-health-notifier"
     environment = "prod"
