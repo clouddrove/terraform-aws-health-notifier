@@ -9,6 +9,8 @@ from .jira.client import JiraClient
 from .jira.notifier import JiraNotifier
 from .linear.client import ENDPOINT, LinearClient
 from .linear.notifier import LinearNotifier
+from .slack.client import SlackClient
+from .slack.notifier import SlackNotifier
 
 
 def _build_one(cfg: Config, name: str) -> Notifier:
@@ -29,6 +31,12 @@ def _build_one(cfg: Config, name: str) -> Notifier:
         creds = secrets.load(cfg.linear_secret_arn)
         lin = LinearClient(creds["api_key"], creds.get("api_url", ENDPOINT))
         return LinearNotifier(lin, cfg.linear_team_key, cfg.linear_done_state, cfg.issue_label)
+    if name == "slack":
+        if not cfg.slack_channel:
+            raise ValueError("notifier 'slack' requires SLACK_CHANNEL")
+        creds = secrets.load(cfg.slack_secret_arn)
+        slack = SlackClient(creds["bot_token"])
+        return SlackNotifier(slack, cfg.slack_channel)
     raise ValueError(f"unknown notifier: {name}")
 
 

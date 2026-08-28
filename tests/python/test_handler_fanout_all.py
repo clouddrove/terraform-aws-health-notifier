@@ -14,6 +14,7 @@ from handler.notifiers.linear import resolve
 JIRA = "https://x.atlassian.net"
 GH = "https://api.github.com"
 LINEAR = "https://api.linear.app/graphql"
+SLACK = "https://slack.com/api"
 TABLE = "state"
 
 OPEN_EVENT: dict[str, Any] = {
@@ -54,6 +55,7 @@ class _Router:
         self.calls: list[str] = []
         self.linear_ops: list[str] = []
         self.issue_input: dict[str, Any] = {}
+        self.slack_calls: list[tuple[str, dict[str, Any]]] = []
 
     def _linear(self, req: urllib.request.Request) -> _FakeResp:
         body = json.loads(cast(bytes, req.data))
@@ -92,6 +94,12 @@ class _Router:
         self.calls.append(f"{req.method} {url}")
         if url == LINEAR:
             return self._linear(req)
+        if url.startswith(SLACK):
+            method = url.rsplit("/", 1)[-1]
+            self.slack_calls.append((method, json.loads(cast(bytes, req.data))))
+            return _FakeResp(
+                json.dumps({"ok": True, "channel": "C123", "ts": "1503435956.000247"}).encode()
+            )
         if url.startswith(JIRA) and req.method == "POST" and url.endswith("/issue"):
             return _FakeResp(json.dumps({"key": "OPS-1"}).encode())
         if url.startswith(GH) and req.method == "POST" and url.endswith("/issues"):
@@ -123,13 +131,16 @@ def env(monkeypatch: pytest.MonkeyPatch) -> Iterator[_Router]:
         )["ARN"]
         ga = sm.create_secret(Name="g", SecretString=json.dumps({"token": "t"}))["ARN"]
         la = sm.create_secret(Name="l", SecretString=json.dumps({"api_key": "lin_api_x"}))["ARN"]
-        monkeypatch.setenv("NOTIFIERS", "jira,github,linear")
+        sa = sm.create_secret(Name="s", SecretString=json.dumps({"bot_token": "xoxb-x"}))["ARN"]
+        monkeypatch.setenv("NOTIFIERS", "jira,github,linear,slack")
         monkeypatch.setenv("JIRA_PROJECT_KEY", "OPS")
         monkeypatch.setenv("GITHUB_REPO", "clouddrove/x")
         monkeypatch.setenv("LINEAR_TEAM_KEY", "OPS")
         monkeypatch.setenv("JIRA_SECRET_ARN", ja)
         monkeypatch.setenv("GITHUB_SECRET_ARN", ga)
         monkeypatch.setenv("LINEAR_SECRET_ARN", la)
+        monkeypatch.setenv("SLACK_SECRET_ARN", sa)
+        monkeypatch.setenv("SLACK_CHANNEL", "C123")
         monkeypatch.setenv("DEFAULT_PRIORITY", "Low")
         monkeypatch.setenv("PRIORITY_MAP_JSON", '{"AWS_EC2_INSTANCE_RETIREMENT_SCHEDULED": "High"}')
         monkeypatch.setenv("TABLE_NAME", TABLE)
@@ -140,11 +151,12 @@ def env(monkeypatch: pytest.MonkeyPatch) -> Iterator[_Router]:
     resolve.reset_cache()
 
 
-def test_fanout_creates_in_all_three_sinks(env: _Router) -> None:
+def test_fanout_creates_in_all_four_sinks(env: _Router) -> None:
     assert handler.lambda_handler(OPEN_EVENT, None)["status"] == "created"
     assert any(c.startswith("POST " + JIRA) and c.endswith("/issue") for c in env.calls)
     assert any(c.startswith("POST " + GH) and c.endswith("/issues") for c in env.calls)
     assert "create_issue" in env.linear_ops
+    assert [m for m, _ in env.slack_calls] == ["chat.postMessage"]
 
 
 def test_linear_issue_carries_native_priority_and_label(env: _Router) -> None:
@@ -182,3 +194,21 @@ def test_team_lookup_is_cached_across_invocations(env: _Router) -> None:
     # build_all() reconstructs the notifier each invocation; the module-scope
     # cache is what keeps this at one lookup.
     assert env.linear_ops.count("teams") == 1
+
+
+def test_slack_ref_stores_channel_and_ts(env: _Router) -> None:
+    handler.lambda_handler(OPEN_EVENT, None)
+    table = boto3.resource("dynamodb", region_name="us-east-1").Table(TABLE)
+    item = table.get_item(Key={"eventArn": OPEN_EVENT["detail"]["eventArn"], "sink": "slack"})
+    # chat.update and reactions.add both need the channel as well as the ts.
+    assert item["Item"]["ref"] == "C123:1503435956.000247"
+
+
+def test_close_replies_in_thread_and_reacts(env: _Router) -> None:
+    handler.lambda_handler(OPEN_EVENT, None)
+    closed = {**OPEN_EVENT, "detail": {**OPEN_EVENT["detail"], "statusCode": "closed"}}
+    assert handler.lambda_handler(closed, None)["status"] == "closed"
+    methods = [m for m, _ in env.slack_calls]
+    assert methods == ["chat.postMessage", "chat.postMessage", "reactions.add"]
+    reply = env.slack_calls[1][1]
+    assert reply["thread_ts"] == "1503435956.000247"

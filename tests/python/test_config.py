@@ -74,3 +74,17 @@ def test_issue_label_defaults(monkeypatch):
 def test_issue_label_override(monkeypatch):
     _env(monkeypatch, ISSUE_LABEL="infra-alerts")
     assert config.load().issue_label == "infra-alerts"
+
+
+def test_slack_config(monkeypatch):
+    _env(monkeypatch, NOTIFIERS="slack", SLACK_SECRET_ARN="arn:s", SLACK_CHANNEL="C123")
+    cfg = config.load()
+    assert cfg.notifiers == ["slack"]
+    assert cfg.slack_secret_arn == "arn:s"
+    assert cfg.slack_channel == "C123"
+
+
+def test_slack_defaults_empty(monkeypatch):
+    _env(monkeypatch)
+    cfg = config.load()
+    assert cfg.slack_secret_arn == "" and cfg.slack_channel == ""

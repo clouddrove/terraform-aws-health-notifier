@@ -2,8 +2,8 @@
 
 Turn AWS Health EC2 scheduled events (maintenance, retirement, reboots) into
 tracked tickets, automatically, across an AWS Organization. Jira Cloud, GitHub
-Issues, and Linear ship today; the sink is pluggable, so Slack or PagerDuty can
-be added later without touching the core.
+Issues, Linear, and Slack ship today; the sink is pluggable, so PagerDuty or
+another destination can be added without touching the core.
 
 ## Why not the AWS Service Management Connector
 
@@ -30,7 +30,7 @@ Member accounts ──(AWS Health org events)──▶ Central Ops account
                                      async failure ─▶ SQS DLQ
 ```
 
-The Lambda is sink-agnostic. `NOTIFIERS` is a comma list (e.g. `jira,github,linear`) and
+The Lambda is sink-agnostic. `NOTIFIERS` is a comma list (e.g. `jira,github,linear,slack`) and
 the same event fans out to every listed sink. Each sink is tracked independently
 in DynamoDB by `(eventArn, sink)`, so dedup and auto-close are per-sink and a
 partial failure retries only the sink that failed. Adding a sink is a new
@@ -64,6 +64,7 @@ src/handler/
     jira/               client.py, format.py (ADF), notifier.py
     github/             client.py, format.py (markdown), notifier.py
     linear/             client.py (GraphQL), format.py, resolve.py, notifier.py
+    slack/              client.py, format.py (Block Kit), notifier.py
 main.tf, enrichment.tf  the module, built on clouddrove/{lambda,dynamodb,sqs,
 variables.tf, outputs.tf   eventbridge,iam-role,labels}/aws
 versions.tf
@@ -161,6 +162,30 @@ becomes 1, `High` 2, `Medium` 3, `Low` 4, and anything unmapped becomes 0
 Linear allows 2,500 requests per user per hour on a personal API key. Each event
 costs at most a handful of calls, so only very high event volume comes close.
 
+**Slack** (include `slack` in `NOTIFIERS`) needs `SLACK_CHANNEL` and a secret
+passed as `slack_secret_arn`:
+
+```json
+{
+  "bot_token": "xoxb-your-bot-token"
+}
+```
+
+The bot needs the `chat:write` and `reactions:write` scopes, and **must be
+invited to the channel**: a bot cannot post to a channel it is not a member of.
+
+`slack_channel` is a channel **id** such as `C0123456789`, not a name, because a
+channel can be renamed out from under the configuration.
+
+Slack is an alerting sink rather than a tracker: no assignee, no status field,
+no audit trail. It complements the ticket sinks. An event posts one message;
+when it resolves the notifier replies in-thread and adds a ✅ reaction to the
+original rather than editing it, because the close path receives only the stored
+reference and an edit would overwrite the message with less detail than it had.
+
+Priority has no Slack equivalent, so it is rendered as an emoji and a field in
+the message. Slack allows roughly one message per second per channel.
+
 ```bash
 aws secretsmanager create-secret \
   --name aws-health-notifier/jira \
@@ -211,6 +236,7 @@ terraform apply`.
 | [`examples/jira`](examples/jira) | Jira only |
 | [`examples/github`](examples/github) | GitHub Issues only |
 | [`examples/linear`](examples/linear) | Linear only |
+| [`examples/slack`](examples/slack) | Slack only |
 | [`examples/complete`](examples/complete) | all three, plus tag enrichment |
 
 The examples declare no backend, so their state is local and disposable. For a
@@ -246,6 +272,8 @@ The shared workflows expect the `BUILD_ROLE`, `GITHUB`, and
 | `LINEAR_SECRET_ARN` | `linear_secret_arn` | `""` (required for linear) |
 | `LINEAR_TEAM_KEY` | `linear_team_key` | `""` (required for linear) |
 | `LINEAR_DONE_STATE` | `linear_done_state` | `""` (first completed state) |
+| `SLACK_SECRET_ARN` | `slack_secret_arn` | `""` (required for slack) |
+| `SLACK_CHANNEL` | `slack_channel` | `""` (required for slack) |
 | `ISSUE_LABEL` | `issue_label` | `aws-health` (github and linear) |
 | `JIRA_PROJECT_KEY` | `jira_project_key` | `""` (required for jira) |
 | `JIRA_ISSUE_TYPE` | `jira_issue_type` | `Task` |

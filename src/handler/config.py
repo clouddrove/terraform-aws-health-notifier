@@ -14,6 +14,8 @@ class Config:
     linear_secret_arn: str
     linear_team_key: str
     linear_done_state: str
+    slack_secret_arn: str
+    slack_channel: str
     issue_label: str
     project_key: str
     issue_type: str
@@ -55,6 +57,8 @@ def load() -> Config:
         linear_secret_arn=os.environ.get("LINEAR_SECRET_ARN", ""),
         linear_team_key=os.environ.get("LINEAR_TEAM_KEY", ""),
         linear_done_state=os.environ.get("LINEAR_DONE_STATE", ""),
+        slack_secret_arn=os.environ.get("SLACK_SECRET_ARN", ""),
+        slack_channel=os.environ.get("SLACK_CHANNEL", ""),
         issue_label=os.environ.get("ISSUE_LABEL", "aws-health"),
         project_key=os.environ.get("JIRA_PROJECT_KEY", ""),
         issue_type=os.environ.get("JIRA_ISSUE_TYPE", "Task"),
