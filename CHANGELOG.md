@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.0] - 2026-09-02
+### :sparkles: New Features
+- [`e48851b`](https://github.com/clouddrove/terraform-aws-health-notifier/commit/e48851b2705aac3ff9974a7567667f459a2c6005) - make lambda reserved concurrency configurable *(PR [#35](https://github.com/clouddrove/terraform-aws-health-notifier/pull/35) by [@sunnymor-cd](https://github.com/sunnymor-cd))*
+
+### :wrench: Chores
+- [`0ffe79d`](https://github.com/clouddrove/terraform-aws-health-notifier/commit/0ffe79d1691f5c08be4136561039657c8e2e8e4f) - **deps**: bump the actions group across 1 directory with 4 updates *(PR [#34](https://github.com/clouddrove/terraform-aws-health-notifier/pull/34) by [@dependabot[bot]](https://github.com/apps/dependabot))*
+
+
 ## [v0.0.1] - 2026-08-28
 ### :sparkles: New Features
 - [`bb6e6ef`](https://github.com/clouddrove/terraform-aws-health-notifier/commit/bb6e6efd7f8bacd9c75ddabce51455a4ff6b43d2) - route AWS Health events to a pluggable notifier, with Jira as the first backend *(PR [#1](https://github.com/clouddrove/terraform-aws-health-notifier/pull/1) by [@clouddrove-ci](https://github.com/clouddrove-ci))*
@@ -37,3 +45,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [`bce52d4`](https://github.com/clouddrove/terraform-aws-health-notifier/commit/bce52d455bc359813e101c91573a962de1069e5a) - bump bridgecrewio/checkov-action in the actions group *(PR [#11](https://github.com/clouddrove/terraform-aws-health-notifier/pull/11) by [@clouddrove-ci](https://github.com/clouddrove-ci))*
 - [`0f90cde`](https://github.com/clouddrove/terraform-aws-health-notifier/commit/0f90cde741b484c17e9dd3bd84cd53e0838becb6) - bump hashicorp/aws in /terraform in the terraform group *(PR [#12](https://github.com/clouddrove/terraform-aws-health-notifier/pull/12) by [@clouddrove-ci](https://github.com/clouddrove-ci))*
 
+[v0.1.0]: https://github.com/clouddrove/terraform-aws-health-notifier/compare/v0.0.1...v0.1.0
