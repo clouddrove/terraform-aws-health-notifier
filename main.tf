@@ -191,7 +191,27 @@ module "lambda" {
   timeout                 = 30
   memory_size             = 256
 
-  reserved_concurrent_executions = 5
+  ##---------------------------------------------------------------------------
+  ## Reserved concurrency is a variable because 5 cannot be deployed on every
+  ## account.
+  ##
+  ## AWS keeps a floor of 10 UNRESERVED concurrent executions per account, and
+  ## unreserved is the account limit minus everything reserved. A new or
+  ## restricted account whose "Concurrent executions" quota is the minimum of 10
+  ## therefore rejects ANY reservation, not just a large one:
+  ##
+  ##   InvalidParameterValueException: Specified ReservedConcurrentExecutions
+  ##   for function decreases account's UnreservedConcurrentExecution below its
+  ##   minimum value of [10].
+  ##
+  ## Lowering it does not help; only removing it does, which is -1. The failure
+  ## also lands AFTER the function is created, so the apply leaves a tainted
+  ## function behind and repeats on every retry.
+  ##
+  ## The default is unchanged at 5, so this is not a behaviour change for an
+  ## account with the standard quota of 1000.
+  ##---------------------------------------------------------------------------
+  reserved_concurrent_executions = var.reserved_concurrent_executions
   tracing_mode                   = "Active"
   dead_letter_target_arn         = module.sqs.arn
 
