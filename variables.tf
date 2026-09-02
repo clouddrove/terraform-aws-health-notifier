@@ -166,8 +166,14 @@ variable "org_root_id" {
   default     = ""
 }
 
+
 variable "reserved_concurrent_executions" {
-  description = "Reserved concurrent executions for the Lambda function. Set to null to use unreserved concurrency."
+  description = "Concurrency reserved for the handler. -1 reserves none, which is what a low-quota account needs: AWS keeps a floor of 10 unreserved executions per account, so an account whose \"Concurrent executions\" quota is the minimum of 10 rejects any reservation at all rather than only a large one."
   type        = number
-  default     = null
+  default     = 5
+
+  validation {
+    condition     = var.reserved_concurrent_executions == -1 || var.reserved_concurrent_executions >= 0
+    error_message = "Must be -1 (no reservation) or a non-negative number."
+  }
 }
