@@ -165,3 +165,9 @@ variable "org_root_id" {
   type        = string
   default     = ""
 }
+
+variable "reserved_concurrent_executions" {
+  description = "Reserved concurrent executions for the Lambda function. Set to null to use unreserved concurrency."
+  type        = number
+  default     = null
+}

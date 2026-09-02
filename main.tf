@@ -191,7 +191,7 @@ module "lambda" {
   timeout                 = 30
   memory_size             = 256
 
-  reserved_concurrent_executions = 5
+  reserved_concurrent_executions = var.reserved_concurrent_executions
   tracing_mode                   = "Active"
   dead_letter_target_arn         = module.sqs.arn
 
