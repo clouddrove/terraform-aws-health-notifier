@@ -19,7 +19,7 @@ module "labels" {
 ##-----------------------------------------------------------------------------
 module "dynamodb" {
   source  = "clouddrove/dynamodb/aws"
-  version = "1.0.2"
+  version = "1.1.0"
 
   name        = "${var.name}-state"
   environment = var.environment
