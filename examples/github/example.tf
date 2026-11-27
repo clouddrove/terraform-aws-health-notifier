@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"
+  region = "ca-central-1"
 }
 
 # GitHub Issues only. Priority becomes a priority:<level> label, and
@@ -16,7 +16,7 @@ module "aws_health_notifier" {
   # Secret payload ("api_url" is optional, set it for GitHub Enterprise):
   #   { "token": "<github-pat>" }
   # The PAT needs issues read and write on the target repo.
-  github_secret_arn = "arn:aws:secretsmanager:us-east-1:111122223333:secret:aws-health-notifier/github-XXXX"
+  github_secret_arn = "arn:aws:secretsmanager:ca-central-1:111122223333:secret:aws-health-notifier/github-XXXX"
 
   issue_label = "aws-health"
 

@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"
+  region = "ca-central-1"
 }
 
 # Jira Cloud only. Tickets are created in JIRA_PROJECT_KEY and closed by the
@@ -19,7 +19,7 @@ module "aws_health_notifier" {
   #   { "base_url": "https://your-domain.atlassian.net",
   #     "email": "automation@your-domain.com",
   #     "api_token": "<jira-api-token>" }
-  jira_secret_arn = "arn:aws:secretsmanager:us-east-1:111122223333:secret:aws-health-notifier/jira-XXXX"
+  jira_secret_arn = "arn:aws:secretsmanager:ca-central-1:111122223333:secret:aws-health-notifier/jira-XXXX"
 
   default_priority = "Low"
   priority_map = {

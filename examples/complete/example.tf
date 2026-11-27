@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"
+  region = "ca-central-1"
 }
 
 # All three sinks plus tag enrichment. One AWS Health event fans out to Jira,
@@ -15,13 +15,13 @@ module "aws_health_notifier" {
   jira_project_key = "OPS"
   jira_issue_type  = "Task"
   done_transition  = "Done"
-  jira_secret_arn  = "arn:aws:secretsmanager:us-east-1:111122223333:secret:aws-health-notifier/jira-XXXX"
+  jira_secret_arn  = "arn:aws:secretsmanager:ca-central-1:111122223333:secret:aws-health-notifier/jira-XXXX"
 
   github_repo       = "clouddrove/your-repo"
-  github_secret_arn = "arn:aws:secretsmanager:us-east-1:111122223333:secret:aws-health-notifier/github-XXXX"
+  github_secret_arn = "arn:aws:secretsmanager:ca-central-1:111122223333:secret:aws-health-notifier/github-XXXX"
 
   linear_team_key   = "OPS"
-  linear_secret_arn = "arn:aws:secretsmanager:us-east-1:111122223333:secret:aws-health-notifier/linear-XXXX"
+  linear_secret_arn = "arn:aws:secretsmanager:ca-central-1:111122223333:secret:aws-health-notifier/linear-XXXX"
 
   # Applied by the GitHub and Linear sinks. Jira ignores it.
   issue_label = "aws-health"

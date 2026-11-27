@@ -1,0 +1,65 @@
+---
+name: Terraform Difference Checks
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+  issues: write
+
+on:
+  pull_request:
+    paths:
+      - '**/*.tf'
+      - '*.tf'
+jobs:
+  tf-checks-complete-example:
+    if: github.actor != 'dependabot[bot]'
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/complete/'
+      provider: 'aws'
+      target_branch: 'master'
+      aws_region: 'ca-central-1'
+    secrets:
+      BUILD_ROLE: ${{ secrets.BUILD_ROLE }}
+  tf-checks-github-example:
+    if: github.actor != 'dependabot[bot]'
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/github/'
+      provider: 'aws'
+      target_branch: 'master'
+      aws_region: 'ca-central-1'
+    secrets:
+      BUILD_ROLE: ${{ secrets.BUILD_ROLE }}
+  tf-checks-jira-example:
+    if: github.actor != 'dependabot[bot]'
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/jira/'
+      provider: 'aws'
+      target_branch: 'master'
+      aws_region: 'ca-central-1'
+    secrets:
+      BUILD_ROLE: ${{ secrets.BUILD_ROLE }}
+  tf-checks-linear-example:
+    if: github.actor != 'dependabot[bot]'
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/linear/'
+      provider: 'aws'
+      target_branch: 'master'
+      aws_region: 'ca-central-1'
+    secrets:
+      BUILD_ROLE: ${{ secrets.BUILD_ROLE }}    
+  tf-checks-slack-example:
+    if: github.actor != 'dependabot[bot]'
+    uses: clouddrove/github-shared-workflows/.github/workflows/tf-checks.yml@v2
+    with:
+      working_directory: './examples/slack/'
+      provider: 'aws'
+      target_branch: 'master'
+      aws_region: 'ca-central-1'
+    secrets:
+      BUILD_ROLE: ${{ secrets.BUILD_ROLE }}    
