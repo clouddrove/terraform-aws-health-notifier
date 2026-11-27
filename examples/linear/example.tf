@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"
+  region = "ca-central-1"
 }
 
 # Linear only. Priority maps onto Linear's native integer priority field
@@ -20,7 +20,7 @@ module "aws_health_notifier" {
   #   { "api_key": "<linear-personal-api-key>" }
   # The key is sent in the Authorization header verbatim, with no Bearer
   # prefix; Linear reserves that for OAuth tokens.
-  linear_secret_arn = "arn:aws:secretsmanager:us-east-1:111122223333:secret:aws-health-notifier/linear-XXXX"
+  linear_secret_arn = "arn:aws:secretsmanager:ca-central-1:111122223333:secret:aws-health-notifier/linear-XXXX"
 
   # Closing moves the issue to the team's first workflow state of type
   # "completed". Set this only to pick a different one by name.
